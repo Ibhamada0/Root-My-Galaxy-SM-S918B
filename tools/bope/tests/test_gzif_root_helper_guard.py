@@ -69,6 +69,33 @@ class GzifRootHelperGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already contains a fuse"):
             patch_gzif_root_helper(guarded)
 
+    def test_pre_watchdog_umh_failure_paths_attempt_enforcing_restore(self):
+        guarded = patch_gzif_root_helper(self.donor)
+        umh = guarded.split(
+            "static int binfmt_umh_main(int argc, char **argv) {", 1
+        )[1].split("static int umh_main(", 1)[0]
+        expected = (
+            "if (geteuid() == 0) (void)restore_selinux_enforcing();\n"
+            "    return 124;",
+            "(void)restore_selinux_enforcing();\n    return 125;",
+            "if (daemon < 0) {\n"
+            "    (void)restore_selinux_enforcing();\n    return 126;",
+            "if (setsid() < 0) {\n"
+            "    (void)restore_selinux_enforcing();\n    _exit(127);",
+        )
+        for snippet in expected:
+            self.assertIn(snippet, umh)
+
+    def test_umh_pre_watchdog_source_drift_is_fail_closed(self):
+        changed = self.donor.replace(
+            "  if (daemon < 0) {\n    return 126;\n  }",
+            "  if (daemon < 0) {\n    return 128;\n  }",
+            1,
+        )
+        self.assertNotEqual(changed, self.donor)
+        with self.assertRaisesRegex(ValueError, "daemon fork failure"):
+            patch_gzif_root_helper(changed)
+
     def test_apply_only_to_a_disposable_copy(self):
         with tempfile.TemporaryDirectory() as tmp:
             copy = Path(tmp) / "su_daemon.c"
