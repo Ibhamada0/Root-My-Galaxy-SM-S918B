@@ -305,6 +305,31 @@ do not use `su`, change SELinux, remount tracefs, or assume 108. Even
 an ID match alone would not validate the KASLR leak, slide geometry,
 memory reclamation, or root payload.
 
+### Read-only on-device tracepoint ID verified — 2026-10-15
+
+The owner ran the following command in Windows PowerShell with the device
+connected over normal (non-root) ADB:
+
+```powershell
+$adb = "C:\\Android\\platform-tools\\adb.exe"
+& $adb shell cat /sys/kernel/tracing/events/sched/sched_blocked_reason/id
+```
+
+The phone returned **`108`**, matching the inherited
+`TARGET_TRACE_SCHED_BLOCKED_REASON_ID = 108U` from ZZI8. This
+is **user-reported runtime evidence** that the event ID exists and
+matches on the running SM-S918N GZIF kernel. The ADB daemon started
+normally; starting the ADB daemon is not a change to the phone's
+trace configuration.
+
+**Scope of confirmation:** the ID alone. It does not verify the
+tracepoint event field format, the raw ring-buffer record layout,
+the `caller` offset, the KASLR slide, access to trace pipes, or
+whether BOPE's KASLR routine works on this device. No trace event was
+enabled or captured. For the next read-only check, use:
+`adb shell cat /sys/kernel/tracing/events/sched/sched_blocked_reason/format`;
+do **not** run the donor KASLR resolver, which writes to tracefs.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
