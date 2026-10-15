@@ -311,11 +311,34 @@ and rejects files whose original build hash/provenance
 does not agree with the previous BOPE report. This
 snapshot contains no deploy or exploit commands.
 
-**Progress status:** committed and awaiting owner-side
-compilation. No GZIF on-device kernel mutation,
-temporary-root socket, live watchdog behavior or
-KernelSU load has been observed. The retained
-`HOST_ONLY_NOT_ROOT_READY` status is correct.
+**Owner-confirmed 2026-10-15:** the guarded helper-only
+NDK build **succeeded**, without rebuilding BOPE or ksud:
+
+```text
+[SOURCE] Copied previous GZIF helper to isolated host workspace
+[GZIF] 180-second independent SELinux restoration fuse + socket expiry
+[BUILD] Recompiling ONLY root helper (no BOPE/KSU/test reruns)
+[BUILT] guarded root_helper: ELF64/AArch64 (29528 bytes)
+Report: /home/ebrahim/rmg-firmware/gzif-helper-fuse-builds/s918ngzif-helper-fuse-njug65hu/build-report.json
+Status: HOST_BUILT_FUSE_ONLY; root and device load NOT validated
+```
+
+The new binary is the 29,528-byte AArch64 GZIF root helper.
+The owner can now create the **separate host-only guarded
+five-file snapshot**, using the previously built four
+other artifacts, without another compiler or device test:
+
+```bash
+python3 tools/linux/assemble-gzif-rootchain-host-only.py \
+  --fused-helper-report \
+  "$HOME/rmg-firmware/gzif-helper-fuse-builds/s918ngzif-helper-fuse-njug65hu/build-report.json"
+```
+
+**Still not device-validated:** temporary-root socket,
+live watchdog execution, SELinux enforcing restoration
+and KernelSU module acceptance. A 180-second userspace fuse
+is best effort, not a kernel recovery mechanism. The
+`HOST_ONLY_NOT_ROOT_READY` classification remains correct.
 
 ### SELinux restoration sequencing gap — source review
 
