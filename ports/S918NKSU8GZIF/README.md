@@ -330,6 +330,46 @@ enabled or captured. For the next read-only check, use:
 `adb shell cat /sys/kernel/tracing/events/sched/sched_blocked_reason/format`;
 do **not** run the donor KASLR resolver, which writes to tracefs.
 
+### Read-only tracepoint field layout confirmed — 2026-10-15
+
+The owner then read the live device's tracepoint format via non-root ADB:
+
+```powershell
+& $adb shell cat /sys/kernel/tracing/events/sched/sched_blocked_reason/format
+```
+
+The returned event metadata contained:
+
+| Field | Byte offset | Size |
+| --- | ---: | ---: |
+| `common_type` | 0 | 2 |
+| `common_flags` | 2 | 1 |
+| `common_preempt_count` | 3 | 1 |
+| `common_pid` | 4 | 4 |
+| `pid` | 8 | 4 |
+| `caller` | 16 | 8 |
+| `io_wait` | 24 | 1 |
+
+It reported `ID: 108`, consistent with the separately read event ID.
+In the donor `01_kernel_base_tracefs.c`,
+`TARGET_TRACE_CALLER_OFF = 0x10` and
+`TARGET_TRACE_SCHED_BLOCKED_REASON_ID = 108` therefore match the
+**individual tracepoint payload format** on GZIF. A 24-byte prefix is
+sufficient to reach the end of `caller`, but the event has an additional
+`io_wait` field at offset 24, so
+`TARGET_TRACE_LOOSE_RECORD_SIZE = 0x18` must **not** be interpreted as
+the complete event record size.
+
+This does **not** validate the raw per-CPU trace ring buffer page format,
+event record framing/alignment, `TARGET_TRACE_TYPE_LEN_MASK`, trace
+reader access, KASLR slide inference, or privilege escalation.
+Next safe read-only metadata inputs are:
+`/sys/kernel/tracing/events/header_page` and
+`/sys/kernel/tracing/events/header_event`.
+Neither requires enabling tracing; if denied, leave these properties
+unverified. Do not run the KASLR resolver as a format test because it
+writes tracefs state.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
