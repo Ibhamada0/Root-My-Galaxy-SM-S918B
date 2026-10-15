@@ -443,6 +443,57 @@ The overall compatibility result is expected to be `false` for this
 results are useful diagnostics; they are not a build or device-root gate.
 Any mismatch or incomplete audit remains a blocker.
 
+### KernelSU donor ABI audit — owner-confirmed 2026-10-15
+
+The owner ran `python3 tools/linux/audit-gzif-kernelsu-static.py` in WSL2
+against the original ZZI8 module and **GZIF's reconstructed kernel**.
+The local script reported:
+
+| Diagnostic | Result |
+| --- | --- |
+| Donor module SHA-256 | MATCH |
+| Module architecture | ELF64 / AArch64 (previous readelf) |
+| Undefined symbols | 203 |
+| Symbols not found in GZIF kallsyms | 0 |
+| Module CRC entries | 139 |
+| Entries matched to reconstructed GZIF kernel CRCs | 139 |
+| CRC mismatches | 0 |
+| Missing target CRCs | 0 |
+| BTF layout mismatches | 0 |
+| `struct module` relocation mismatches | 0 |
+| Target vermagic match | **False** (unchanged ZZI8 original) |
+| Overall `passed` | **False**, as expected |
+
+The layout comparison uses **donor kernel BTF** instead of the original
+module's own DWARF, so it is conditional evidence rather than an
+independent validation of the module build configuration. The kernel
+ELF itself was reconstructed from firmware and must not be conflated
+with a compiler-produced symbolized `vmlinux`.
+The audit report was generated locally, not independently retrieved.
+
+A separate analysis-only helper
+`tools/linux/check-gzif-ksu-retarget.py` requires the verified donor
+hash and pre-retarget audit, then writes a **local WIP copy** with only
+the same-length `vermagic` release text changed, re-runs the complete
+host static ABI checks, and records a report. No module is compiled,
+signed, uploaded, insmod'ed, installed or flashed.
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+source .venv/bin/activate
+python3 -m unittest tools.bope.tests.test_ksu_metadata_retarget -v
+python3 tools/linux/check-gzif-ksu-retarget.py
+```
+
+Outputs stay outside the Git checkout:
+`~/rmg-firmware/gzif-contracts/s918ngzif-WIP/analysis-only/`.
+**Even if the modified metadata makes every static check pass, the
+candidate remains NOT DEVICE-VALIDATED and MUST NOT BE LOADED.**
+Further blockers include Samsung module signing/loading policy,
+device-dependent BOPE reclaim/timing, trace ring framing access,
+KernelSU behavior, and clean-boot safety.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
