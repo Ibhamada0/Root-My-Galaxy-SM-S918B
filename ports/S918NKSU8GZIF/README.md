@@ -120,6 +120,30 @@ Use `--skip-build --skip-kernelsu` and a separate output root for the first
 contract derivation; no app integration or device modification should occur.
 See `tools/bope/README.md` for the standalone factory CLI entry point.
 
+### ELF-to-kallsyms address cross-check — user-confirmed
+
+The owner compared a sample of four recovered kernel addresses using
+`llvm-nm -n` against the `kallsyms-finder` text output:
+
+| symbol | ELF and kallsyms address |
+| --- | --- |
+| `_text` | `ffffffc008000000` |
+| `worker_thread` | `ffffffc00810dd84` |
+| `init_task` | `ffffffc00ac05400` |
+| `selinux_state` | `ffffffc00ad8e600` |
+
+All four *addresses* matched. Types for `init_task` and
+`selinux_state` differ (`T` in reconstructed ELF versus `D`/`B` in
+the native kallsyms dump); verify addresses using the full ELF/BTF
+contract rather than relying on reconstructed ELF symbol types.
+
+**Donor choice correction:** use `targets/zzi8-WIP` for both `--donor`
+and `--engine-donor` on this GZIF port. The legacy `targets/zzhl`
+header lacks `TARGET_KERNEL_VERSION`, which the current
+`derive_contract` requires. Donor inheritance is limited to
+calibration/configuration and must not be treated as proof of kernel
+symbol offsets or a verified payload.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
@@ -142,7 +166,7 @@ Use the full upstream source checkout and prerequisite tools described in
 ```sh
 ./tools/bope-from-factory "/path/to/boot.img.lz4" \
   --fingerprint 'samsung/dm3qksx/dm3q:17/CP2A.260605.016/S918NKSU8GZIF:user/release-keys' \
-  --donor targets/zzhl \
+  --donor targets/zzi8-WIP \
   --engine-donor targets/zzi8-WIP \
   --target-slug s918ngzif \
   --expected-kernel-release 5.15.197-android13-8-34343818-abS918NKSU8GZIF \
