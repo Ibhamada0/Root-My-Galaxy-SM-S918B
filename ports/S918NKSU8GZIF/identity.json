@@ -1,0 +1,25 @@
+{
+  "status": "UNVALIDATED_NO_ROOT_PAYLOAD",
+  "model": "SM-S918N",
+  "device": "dm3q",
+  "android_version": "17",
+  "one_ui": "9.0",
+  "build": "S918NKSU8GZIF",
+  "build_display": "CP2A.260605.016.S918NKSU8GZIF",
+  "fingerprint": "samsung/dm3qksx/dm3q:17/CP2A.260605.016/S918NKSU8GZIF:user/release-keys",
+  "kernel_release": "5.15.197-android13-8-34343818-abS918NKSU8GZIF",
+  "kernel_version_info": "#1 SMP PREEMPT Mon Sep 28 01:56:16 UTC 2026",
+  "boot": {
+    "header_version": 4,
+    "image_bytes": 100663296,
+    "kernel_bytes": 46860800,
+    "lz4_sha256": "c7f37c99b54a8a164b082a88af5a833f7f48bcd4ca98db9dbd8b4192e984253b",
+    "raw_sha256": "1552a1dbf45a95ef25626097605c2f1d3e64c1b557353887b905be1ea166635e"
+  },
+  "btf": {
+    "bytes": 6098807,
+    "sha256": "8596ca24a2316e4d52a30f206bba1adf733d3e61ecca5c760222e284caef1a2b",
+    "validated_with": "pahole -F btf -C task_struct"
+  },
+  "source": "https://github.com/soumarcelino/Root-My-Galaxy-SM-S918B"
+}
