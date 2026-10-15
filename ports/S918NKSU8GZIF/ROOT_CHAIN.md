@@ -406,6 +406,81 @@ field only; it is not a source-rebuilt or device-accepted
 kernel module. `full_root_ready=false`; no device
 deployment is approved by successful assembly.
 
+### Owner-confirmed fused five-artifact assembly — 2026-10-15
+
+After the 29,528-byte GZIF SELinux-fused root-helper build,
+the owner ran the optional host-only assembly with its report:
+
+```text
+[ASSEMBLED] 5 Android ARM64 host artifacts: /home/ebrahim/rmg-firmware/gzif-rootchain-host-only/s918n-gzif-bope-ksud-candidate-selinux-fuse
+Manifest: /home/ebrahim/rmg-firmware/gzif-rootchain-host-only/s918n-gzif-bope-ksud-candidate-selinux-fuse/rootchain-manifest.json
+Status: HOST_ONLY_NOT_ROOT_READY; no device actions
+```
+
+**This milestone is complete.** The separately labeled snapshot
+contains four original BOPE/launcher/factory/ksud artifacts and
+the **fused GZIF-specific root helper instead of the old helper**.
+The assembler verified original binary hashes, KMI/loader
+strings, the fused-helper build-report linkage, and the embedded
+donor-module's audit identity. No file was deployed to Android.
+
+No repeated KASLR, 12/12 tests, helper/BOPE/ksud rebuild, or
+re-assembly is needed. The actual blocker is **kernel execution
+and KernelSU module admission**, not host artifact availability.
+
+### KernelSU module admission — exact unresolved gate
+
+The owner-read SM-S918N GZIF `/proc/config.gz` contained
+`CONFIG_MODULES=y`, `CONFIG_MODVERSIONS=y`,
+`CONFIG_MODULE_SIG=y`, `CONFIG_MODULE_SIG_PROTECT=y`
+and `CONFIG_MODULE_SIG_ALL=y`, with
+`CONFIG_MODULE_SIG_FORCE` disabled. These facts alone
+**neither guarantee nor categorically deny unsigned
+third-party module admission**.
+
+Android GKI's `CONFIG_MODULE_SIG_PROTECT` protects
+certain **symbol accesses and exports**. For an unsigned
+unprotected module, policy can reject disallowed symbols with
+`-EACCES`; it is not equivalent to a blanket mandate
+that every vendor module have a Samsung signing key.
+Official references:
+
+- [Android common kernel MODULE_SIG_PROTECT Kconfig](https://android.googlesource.com/kernel/common/+/1694e2760e48d82ce4cc30a196d93fef6ae1f69d/kernel/module/Kconfig)
+- [AOSP kernel modules overview](https://source.android.com/docs/core/architecture/kernel/modules)
+- [GKI module symbol protection behavior](https://android.googlesource.com/kernel/common/+/e9669eeb2f4580e44226cf1b582340f4b6388387%5E%21/)
+
+The candidate's **139 matched modversion CRCs**, symbol presence
+and matching donor-vs-GZIF BTF subset are **not** a proof that
+the required symbols are allowed for an unsigned module or that
+its runtime structure layout is fully compatible. A
+`vermagic` replacement is **not** a source build.
+The live `/proc/sys/kernel/modules_disabled` state
+could not be read under unprivileged ADB; it remains unknown.
+
+**Next concrete dependency:** obtain a reproducible *matching*
+GZIF kernel build/Kbuild and a trusted source-built
+KernelSU v3.4.0 `.ko`, or an independently documented
+admission-compatible KMI module with the necessary symbol
+access under this exact running kernel. The original ZZI8
+binary is insufficient proof. Samsung's
+[Open Source Release Center](https://opensource.samsung.com/)
+is an appropriate place to request/search for SM-S918N
+source, but no exact GZIF source archive and accompanying
+matching `Module.symvers`/prepared artifacts have been
+verified in this project. The fact that Samsung publishes
+GPL source does **not** imply it supplies its exact private
+production kernel build tree, signing keys or module
+admission policy.
+
+**Device/root status stays NO-GO:** the one-shot
+`GZIF_KASLR_ONLY` demonstration does not validate
+the donor-inherited futex/kernel-RW exploit or the
+`root_umh_install_fd_tracked` recovery path. The new
+180-second userspace fuse cannot restore kernel memory
+after a panic or guarantee the module can load. There
+is no documented successful root or persistent KernelSU
+on SM-S918N/GZIF as of this owner session.
+
 ## Exact-kernel module build gate
 
 A source-only WSL builder was added:
