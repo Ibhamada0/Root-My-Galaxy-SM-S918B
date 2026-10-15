@@ -370,6 +370,40 @@ Neither requires enabling tracing; if denied, leave these properties
 unverified. Do not run the KASLR resolver as a format test because it
 writes tracefs state.
 
+### Read-only ring buffer page metadata — owner-confirmed 2026-10-15
+
+The owner successfully read
+`/sys/kernel/tracing/events/header_page` over non-root ADB, which returned:
+
+```text
+field: u64 timestamp;   offset:0;  size:8;
+field: local_t commit;  offset:8;  size:8;
+field: int overwrite;   offset:8;  size:1;
+field: char data;       offset:16; size:4080;
+```
+
+Thus the tracefs metadata describes a **4096-byte page** with its
+`commit` value at offset 8 and data starting at offset 16. The donor
+`parse_trace_page` implementation reads `commit` at offset 8,
+starts structured record parsing at offset 16, uses
+`TARGET_PAGE_SIZE = 0x1000`, and bounds the declared data extent by
+the actual read length. Those **page-level assumptions agree** with
+the reported metadata. This does not independently establish
+the contents of the commit bitfields or the raw event record encoding.
+
+A separate attempt to read
+`/sys/kernel/tracing/events/header_event` returned
+**`Permission denied`**. This is an **unavailable** verification gate,
+not an error to bypass. In particular the raw ring-buffer per-event
+record encoding, the `TARGET_TRACE_TYPE_LEN_MASK = 0x1f`
+framing behavior, actual trace ring reader access and KASLR
+candidate extraction **remain unverified**. Do not escalate
+privileges, change access controls, enable tracing, or run
+the KASLR resolver to bypass this limitation.
+
+The device has not been rooted or modified during these
+read-only metadata checks.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
