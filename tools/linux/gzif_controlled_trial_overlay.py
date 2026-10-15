@@ -64,14 +64,13 @@ def patch_orchestrator(text: str) -> str:
     diagnostic_code = (
         '  if (getenv("GZIF_KASLR_ONLY")) {\n'
         '    uint64_t base = 0;\n'
-        '    fprintf(stderr, "[gzif-diagnostic] KASLR only: no root preflight '
-        'or kernel memory mutation\\n");\n'
+        '    fprintf(stderr, "stage=gzif-kaslr-only no-root-preflight '
+        'no-kernel-mutation\\n");\n'
         '    if (!kaslr_locate_via_tracefs(&base)) {\n'
-        '      fprintf(stderr, "[gzif-diagnostic] KASLR resolution failed\\n");\n'
+        '      fprintf(stderr, "stage=gzif-kaslr-failed root-not-attempted\\n");\n'
         '      return 0;\n'
         '    }\n'
-        '    fprintf(stderr, "[gzif-diagnostic] KASLR resolved; root '
-        'not attempted\\n");\n'
+        '    fprintf(stderr, "stage=gzif-kaslr-resolved root-not-attempted\\n");\n'
         '    return 1;\n'
         '  }\n'
     )
@@ -79,12 +78,26 @@ def patch_orchestrator(text: str) -> str:
         text, diagnostic_anchor, diagnostic_anchor + diagnostic_code,
         "KASLR-only diagnostic before any root helper preflight",
     )
+    # Correct donor supervisor's generic "exploit completed" success
+    # label: a KASLR-only child returned normally, no root was attempted.
+    text = once(
+        text,
+        '      printf("\\x1b[32m[+] \\x1b[0mexploit completed attempt=%d/%d\\n",\n'
+        '             attempt, attempts);',
+        '      if (getenv("GZIF_KASLR_ONLY")) {\n'
+        '        fprintf(stderr, "stage=gzif-kaslr-child-completed root-not-attempted\\n");\n'
+        '      } else {\n'
+        '        printf("\\x1b[32m[+] \\x1b[0mexploit completed attempt=%d/%d\\n",\n'
+        '               attempt, attempts);\n'
+        '      }',
+        "misleading exploit-completed label in KASLR-only mode",
+    )
     # Do not report an exploit/root success for a KASLR-only result.
     text = once(
         text,
         '  if (success && getenv("PIPE_PREFLIGHT_ONLY")) {',
         '  if (success && getenv("GZIF_KASLR_ONLY")) {\n'
-        '    puts("GZIF: KASLR-only diagnostic success; root not attempted");\n'
+        '    puts("stage=gzif-kaslr-only-success root-not-attempted");\n'
         '  } else if (success && getenv("PIPE_PREFLIGHT_ONLY")) {',
         "no false root success metric for KASLR-only run",
     )
