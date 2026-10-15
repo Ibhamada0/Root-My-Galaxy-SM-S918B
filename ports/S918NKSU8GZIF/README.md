@@ -532,6 +532,29 @@ at on-device loading, perform non-root, read-only checks of
 A missing/inaccessible file should be recorded as unavailable, never
 bypassed. The values alone do not authorize module loading.
 
+### Read-only module-loader policy preflight — owner-reported 2026-10-15
+
+Windows ADB shell output from the matching SM-S918N / GZIF phone:
+
+| Read-only check | Result | Interpretation |
+| --- | --- | --- |
+| `cat /proc/sys/kernel/modules_disabled` | `Permission denied` | The **runtime** modules-disabled state is **UNKNOWN**; do not attempt to bypass access controls |
+| `cat /sys/module/module/parameters/sig_enforce` | `No such file or directory` | This path is **unavailable**; it does **not** establish that module signatures are optional |
+| `ls -l /proc/config.gz` | `-r--r--r-- 1 root root 42167 ... /proc/config.gz` | Kernel build configuration is visible without root; a **read-only** copy can be audited |
+
+Only the reported terminal output was reviewed, not a downloaded
+kernel config. The next bounded check is to **read/copy** `/proc/config.gz`
+with `adb pull` (if permitted) and inspect
+`CONFIG_MODULES`, `CONFIG_MODVERSIONS`, `CONFIG_MODULE_SIG*`,
+`CONFIG_MODULE_UNLOAD`, plus related module-loading security options.
+Keep `modules_disabled` unknown even if static Kconfig values look
+permissive: compile-time options do not settle runtime lockout or
+Samsung signature/LSM enforcement.
+
+Do not write sysctl or sysfs settings; do not alter SELinux,
+attempt `su`, perform `insmod`, or treat static checks as device
+load authorization. The analysis-only WIP module stays off-device.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
