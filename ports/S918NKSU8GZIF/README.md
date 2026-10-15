@@ -62,6 +62,44 @@ ABI verification, BOPE binary builds, and clean-boot physical-device trials.
 **Do not copy ZZI8 symbol addresses into a GZIF executable based on the BTF
 comparison.** Do not enable GZIF in the app target manifest without those gates.
 
+## User-confirmed WSL2 offline extraction — 2026-10-15
+
+The Windows/Ubuntu WSL2 operator independently confirmed the following from
+the matching local GZIF boot image:
+
+- `boot.img.lz4` checksum matched the previously recorded SHA-256;
+  `boot.img` decompressed to 100663296 bytes.
+- The unpacked kernel is 46860800 bytes with the **exact** GZIF release
+  `5.15.197-android13-8-34343818-abS918NKSU8GZIF` and matching build date.
+- An embedded 6098807-byte BTF blob was extracted and accepted by `pahole`.
+- `tools/bope-btf-audit` reported `resolved_count=74`, `missing=[]`,
+  `compared=74`, `matched=74`, `differences={}`.
+
+This records user-reported terminal results, not uploaded or independently
+reviewed logs. It only confirms structural compatibility; it does not
+establish that BOPE static symbol offsets, KernelSU ABI or kernel exploit
+calibration are valid.
+
+### Offline kallsyms and ELF reconstruction (next validation gate)
+
+In the repository checkout on Ubuntu under WSL2:
+
+```bash
+git pull --ff-only origin port/s918n-gzif-android17
+source .venv/bin/activate
+python3 -m pip install vmlinux-to-elf
+sudo apt install -y binutils
+bash tools/linux/recover-gzif-symbols.sh
+```
+
+The script verifies the supplied `boot.img.lz4` SHA-256 and extracted kernel
+release, then invokes upstream `kallsyms-finder` and `vmlinux-to-elf` on
+the **local** kernel with tool-inferred base address. It generates analysis
+artifacts `kallsyms_GZIF.kallsyms` and `vmlinux_GZIF.elf` next to the
+firmware, with separate logs. If recovery fails, inspect the logs and do not
+copy donor symbol offsets as a substitute. Generated firmware binaries and
+symbols are not uploaded to the repository or flashed to the phone.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
