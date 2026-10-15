@@ -1428,6 +1428,25 @@ establish compatibility or permitted symbol use.
 See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the exact upstream
 GKI behavior and this independent NO-GO boundary.
 
+### Later GZIF guard correction — owner-confirmed 2026-10-15
+
+The owner ran the five dedicated
+`tools.bope.tests.test_gzif_root_helper_guard` host regressions
+successfully after fixing the order of the GZIF source transformations
+in commit `37957836`. The **root helper only** was then rebuilt
+successfully as a **29,592-byte AArch64 ELF**, with report:
+
+`~/rmg-firmware/gzif-helper-fuse-builds/s918ngzif-helper-fuse-b34owbef/build-report.json`
+
+The newer helper adds a fail-closed path for chmod failure on the
+temporary-root socket (close/unlink and an immediate attempt to
+restore enforcing). Previous **29,528-byte** build and assembled
+five-file snapshot remain historical milestones, **not** the newly
+rebuilt 29,592-byte binary. No new five-file assembly or deployment
+occurred. The device's existing `ksud --version` check returned
+`ksud 3.4.0 (uapi: 4)` with exit 0, but kernel module loading
+and BOPE full-root execution are **not validated**.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
