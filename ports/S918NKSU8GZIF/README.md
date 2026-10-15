@@ -612,6 +612,34 @@ Next safe investigation is host-side module-signature metadata inspection
 unchanged donor and local WIP copy. No `insmod`, module signing,
 privilege escalation or changes to kernel policy.
 
+### Owner-read KernelSU signature metadata — 2026-10-15
+
+The owner used Ubuntu WSL2 `modinfo -F` to inspect the **original ZZI8
+module** and the separately generated **GZIF vermagic-only WIP copy**.
+Both files yielded empty `signer`, `sig_id`, `sig_key` and
+`sig_hashalgo` fields. The `vermagic` line alone differed:
+
+| Artifact | Kernel release in `vermagic` | Signature fields |
+| --- | --- | --- |
+| Unmodified donor | `5.15.197-android13-8-34343818-abS918BXXUAZZI8` | all empty |
+| Local metadata-only WIP | `5.15.197-android13-8-34343818-abS918NKSU8GZIF` | all empty |
+
+This is consistent with **no recognizable Linux module appended
+signature** in either file. Absence of `modinfo` fields does not
+demonstrate that the GZIF kernel would accept the module, nor exclude
+separate vendor signing or symbol-protection policy. In particular
+`CONFIG_MODULE_SIG_FORCE` being unset at build time is **not** a
+module-loading authorization, and `CONFIG_MODULE_SIG_PROTECT=y` remains
+an independent GKI protected-symbol concern. The runtime
+`modules_disabled` value is unavailable to the non-root user.
+
+For a second *strictly host-side*, non-modifying signature-format check,
+compare the final bytes of each .ko with the standard Linux module
+signature trailer `~Module signature appended~\\n`. Do not infer
+device loadability from this check. The GZIF WIP file must remain in
+the `analysis-only` directory and **must not be insmod'ed, signed,
+deployed, flashed, or presented as a working KernelSU port**.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
