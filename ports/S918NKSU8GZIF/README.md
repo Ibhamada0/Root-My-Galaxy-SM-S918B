@@ -683,6 +683,38 @@ framing, GKI security policy, and runtime stability gates remain open.
 Do not deploy or execute any WIP binary while the on-device test
 protocol and recovery plan are incomplete.
 
+### Build gate correction: multiline identity macros — 2026-10-15
+
+The owner first ran `python3 tools/linux/build-gzif-android-wip.py`
+and received `[ERROR] Generated target.h does not match TARGET_KERNEL_RELEASE`
+**before Android NDK compilation began**.
+
+Root cause: the new builder's initial identity regex required
+`#define TARGET_KERNEL_RELEASE "…"` on a single line, while the
+upstream ZZI8 donor's `TARGET_KERNEL_RELEASE` (and fingerprint)
+are defined as `#define TARGET_KERNEL_RELEASE \\` followed
+by an indented quoted value on the next line. The contract generator
+deliberately retains that correct C-preprocessor spelling.
+
+Fixed in `tools/linux/build-gzif-android-wip.py` by strict
+single-/two-line parsing with exact value checking, duplicate rejection
+and CRLF support. Added seven host-only regression tests in
+`tools/bope/tests/test_gzif_build_identity_parser.py`.
+The generated GZIF header, manifest, firmware and Android device
+were **not changed** by the fix.
+
+Run:
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+python3 -m unittest tools.bope.tests.test_gzif_build_identity_parser -v
+python3 tools/linux/build-gzif-android-wip.py
+```
+
+This is only a local WIP Android build. A successful build is still
+**not** exploit validation or permission to run, load or flash it.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
