@@ -1226,6 +1226,34 @@ do not cryptographically establish source freshness or
 guarantee correctness of kernel memory addresses. No root
 experiment has been authorized by these changes.
 
+### Owner-confirmed revised GZIF overlay regressions — 2026-10-15
+
+The owner first reported **11 PASS / 1 FAIL** in 12
+`test_gzif_controlled_trial_overlay` cases, while the latest
+four-artifact Android NDK build **succeeded** at:
+
+`~/rmg-firmware/gzif-android-builds/s918ngzif-7cjfl28m/`
+
+The single failure was a stale test assertion checking for
+`root not attempted` after the guarded KASLR-only diagnostic
+was changed to `root-not-attempted`. The runtime source itself
+built without an error. Commit `b9b8b94` corrected the
+assertion without changing BOPE or the NDK build artifacts.
+
+The owner has now explicitly confirmed **12/12 OK** after the
+assertion fix. This is a successful **host regression run**
+(including synthetic-page compiled C test), not evidence
+that the revised two-distinct-page KASLR quorum has executed
+on the physical SM-S918N.
+
+**Next owner trial, not yet observed:** guarded
+`GZIF_KASLR_ONLY` mode using the above rebuilt
+`s918ngzif-7cjfl28m` payload; look for
+`stage=gzif-kaslr-distinct-pages-quorum=2`,
+`stage=gzif-tracefs-live-capture-ms=`,
+and TraceFS `0/0` restoration. This is not
+kernel mutation, temporary root, or KernelSU load.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
