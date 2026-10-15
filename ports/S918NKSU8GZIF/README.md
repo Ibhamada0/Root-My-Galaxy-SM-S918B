@@ -1329,6 +1329,34 @@ has been validated by constructing this userspace loader.
 See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the build command and
 remaining separate root gates.
 
+### Owner-confirmed real KernelSU Next Android `ksud` host build — 2026-10-15
+
+The host-only `build-gzif-ksud-loader-wip.py` completed successfully
+on the owner's Ubuntu WSL after installing Rust and correcting the
+audit report schema contract:
+
+- Upstream KernelSU Next v3.4.0 source commit: pinned `1a879d6`.
+- Embedded KMI module: `android13-5.15_kernelsu.ko`, using the
+  **static-audited ZZI8 donor-derived candidate with GZIF
+  vermagic**, not an exact-source rebuild.
+- Output: `ksud-selected.WIP`, **ELF64/AArch64, 4,246,104 bytes**.
+- Build directory:
+  `~/rmg-firmware/gzif-kernelsu-loader-builds/s918ngzif-ksud-ohhjnre7/`
+- Cargo build report: `build-report.json` in that directory.
+- Owner output: `Status: HOST BUILT; device module admission NOT validated`.
+
+**Milestone:** the BOPE temporary-root helper's intended
+`ksud-selected` loader now has an actual matching-command-line
+Android binary *on the host*. This does **not** constitute a
+GZIF-native `kernelsu.ko` nor establish kernel module load
+admission, KernelSU control, or SELinux recovery. No device
+deployment or root run has been performed with these files.
+
+See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the next distinct
+kernel-execution, temporary-root and KernelSU loading gates.
+No repeat of already-passed BOPE KASLR or host regressions
+is called for.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
