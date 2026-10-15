@@ -144,6 +144,45 @@ header lacks `TARGET_KERNEL_VERSION`, which the current
 calibration/configuration and must not be treated as proof of kernel
 symbol offsets or a verified payload.
 
+## GZIF generated firmware contract — owner-confirmed 2026-10-15
+
+The owner ran the standalone `tools/bope-from-factory` pipeline locally in
+WSL2 with `--donor targets/zzi8-WIP --engine-donor targets/zzi8-WIP`,
+the exact fingerprint and kernel release, `--base-address
+0xffffffc008000000`, and the intentionally restrictive flags
+`--skip-build --skip-kernelsu`. The output was written **outside the Git
+checkout**, under `~/rmg-firmware/gzif-contracts/s918ngzif-WIP`.
+
+The resulting `port-manifest.json`, according to user-reported console
+output, states:
+
+- `status: GENERATED_WIP_DEVICE_VALIDATION_REQUIRED`
+- `target.build: S918NKSU8GZIF`
+- `contract.verification.passed: true`
+- `len(contract.verification.checks): 107`
+- `len(contract.changed_values): 23`
+- `len(contract.inherited_calibration_values): 169`
+- `contract.verification.errors: []`
+
+The report and generated header have not been uploaded or independently
+reviewed. Note that the manifest key `inherited_calibration_values` actually
+holds **all inherited TARGET_* definitions**, not just device-calibrated
+parameters. The next review must classify these inherited values, especially
+futex timing, memory reclaim, KASLR, object geometry and pipe handling, and
+cross-check the full generated `target.h` against the target firmware. Do not
+construe successful consistency checks as a validated exploit, a safe
+device-side test or a working KernelSU root port.
+
+To repeat the contract verifier against the locally generated files:
+
+```bash
+T="$HOME/rmg-firmware/gzif-contracts/s918ngzif-WIP"
+./tools/bope-verify-target \
+  --header "$T/brazilian-open-payload-engine/src/target.h" \
+  --elf "$T/firmware/vmlinux_S918NGZIF.elf" \
+  --btf "$T/firmware/vmlinux_S918NGZIF.btf"
+```
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
