@@ -1180,6 +1180,52 @@ GZIF allocator/reclaim timing and unsigned KernelSU Next module
 admission still lack live validation. Odin/backup readiness cannot
 make those kernel writes reliable.
 
+### GZIF KASLR page-deduplication source hardening — 2026-10-15
+
+Reviewing the actual `01_kernel_base_tracefs.c` established the
+meaning of the owner-observed `sample_ms=0`: the monotonic timer
+starts **after** the two `prime_block_io()` passes (each pass writes
+a multi-megabyte temporary I/O stimulus and fsyncs it). Therefore
+`sample_ms=0` is compatible with trace records generated during
+those passes, and is **not itself evidence of stale ring data**.
+The initial KASLR candidate was produced by a two-vote quorum;
+this remains real execution evidence, not proof of a correct slide.
+
+Further inspection found that the donor's loose scan
+(`parse_trace_page`) can count two matching records **on the same
+raw trace page** as a complete two-vote quorum, even if the records
+are duplicates. This source assumption was not covered by the
+previous one-shot regression tests.
+
+A new **GZIF-only disposable-copy overlay** now runs the
+existing parser against a *per-page temporary vote table* and
+merges at most one vote per candidate from each separately
+read TraceFS page. A successful quorum requires records from
+at least `TARGET_KASLR_QUORUM` separate page reads (two for
+the donor contract). The patch also records
+`stage=gzif-tracefs-live-capture-ms=` beginning **before** the two
+I/O priming passes, while preserving the original `sample_ms`
+field for comparison.
+
+A new compiled host fixture creates synthetic trace data with
+two matching loose-format records **in one page**, confirms
+this cannot satisfy a two-vote quorum, then feeds two pages
+and confirms the exact candidate resolves. The host regression
+suite now has **12 cases** (including this compiled C case),
+but **these 12 updated tests have not yet been executed by the
+owner**. Successful test/build output is required before using
+this revised binary; the previously tested `abe9924m`
+payload is unchanged and uses the old quorum logic.
+
+**Remaining limitations:** two different pages may still contain
+stale records from a prior global tracing session, and the
+loose scanner accepts candidates based on event ID and caller
+range without fully validated structured event metadata. Two
+independent page reads reduce duplicate-vote risk but
+do not cryptographically establish source freshness or
+guarantee correctness of kernel memory addresses. No root
+experiment has been authorized by these changes.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
