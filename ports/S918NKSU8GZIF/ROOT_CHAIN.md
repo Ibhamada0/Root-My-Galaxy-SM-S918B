@@ -58,6 +58,24 @@ Samsung module loading and protected-export policy, signing,
 relocations and actual load admission must be validated separately.
 139 matched CRCs and eight BTF checks do not establish admission.
 
+## Source preparation on Ubuntu WSL
+
+The repository now contains
+`tools/linux/prepare-gzif-kernelsu-source.sh`. This checks out the
+**exact upstream v3.4.0 release commit** (`1a879d6` prefix),
+separately from the BOPE port, and records the source identity:
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+bash tools/linux/prepare-gzif-kernelsu-source.sh
+```
+
+This is **actual module source preparation**, not another on-device
+stability test. It does **not** build an exact GZIF module, and it
+does not copy, load or flash anything on the phone. A source tree
+for the exact GZIF kernel/DDK build environment is still required.
+
 ## Implementation order (no repeat of completed smoke tests)
 
 1. Identify the actual target GKI toolchain/build configuration
