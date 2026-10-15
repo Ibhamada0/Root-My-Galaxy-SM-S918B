@@ -73,6 +73,33 @@ EXCLUDED_PREFIXES = (
 )
 
 
+def observe_file_cache_size(cache_size: int, btf_file_size: int | None) -> dict:
+    """Report BTF sizeof(file) without equating it to a SLAB object size.
+
+    The inactive donor code passes TARGET_FILE_CACHE_SIZE to
+    slab_cache_guard_begin as a cache allocation size. BTF contains the type
+    size, not the actual kmem_cache->size of the device's file cache.
+    """
+    return {
+        "macro": "TARGET_FILE_CACHE_SIZE",
+        "status": "UNVERIFIED_SLAB_OBJECT_SIZE",
+        "inherited_cache_size": cache_size,
+        "btf_struct_file_size": btf_file_size,
+        "struct_fits_in_assumed_cache": (
+            btf_file_size is not None and cache_size >= btf_file_size
+        ),
+        "source_usage": (
+            "The current donor uses this macro only inside a disabled "
+            "#if 0 slab_cache_guard_begin path in 09_pipe_buffer_rw.c."
+        ),
+        "explanation": (
+            "BTF sizeof(struct file) is not proof of the file cache's "
+            "kmem_cache.size; the inherited allocation size needs separate "
+            "target evidence if this disabled path is ever enabled."
+        ),
+    }
+
+
 def audit(target: Path) -> dict:
     manifest = json.loads((target / "port-manifest.json").read_text())
     if manifest["target"]["build"] != "S918NKSU8GZIF":
@@ -115,8 +142,9 @@ def audit(target: Path) -> dict:
         })
 
     file_layout = btf_layout(btf, "file", Path(pahole))
-    expect("BTF struct file size", "TARGET_FILE_CACHE_SIZE",
-           numbers["TARGET_FILE_CACHE_SIZE"], structure_size(file_layout))
+    file_cache_observation = observe_file_cache_size(
+        numbers["TARGET_FILE_CACHE_SIZE"], structure_size(file_layout)
+    )
     rb_layout = btf_layout(btf, "rb_node", Path(pahole))
     for macro, member in (
         ("TARGET_RB_PARENT_OFF", "__rb_parent_color"),
@@ -145,11 +173,14 @@ def audit(target: Path) -> dict:
         "categories": {key: list(names) for key, names in CATEGORIES.items()},
         "total_other_inherited": len(other),
         "checks": checks,
+        "unverified_observations": [file_cache_observation],
         "passed_checks": sum(item["passed"] for item in checks),
         "failed_checks": [item for item in checks if not item["passed"]],
         "warning": (
-            "Only six structural checks; all 33 inherited definitions still "
-            "require source-specific assessment. Live offsets, trace IDs, "
+            "Only five structural checks; TARGET_FILE_CACHE_SIZE is separately "
+            "recorded as unverified, not checked against sizeof(struct file). "
+            "All 33 inherited definitions still require source-specific "
+            "assessment. Live offsets, trace IDs, "
             "KASLR, timing, exploit and KernelSU behavior are NOT validated."
         ),
     }
@@ -175,6 +206,10 @@ def main() -> int:
     for item in report["failed_checks"]:
         print(f"  [FAIL] {item['check']}: expected {item['independently_observed']}, "
               f"header {item['contract_value']}")
+    for item in report["unverified_observations"]:
+        print(f"  [UNVERIFIED] {item['macro']}: inherited cache size "
+              f"{item['inherited_cache_size']}, BTF struct file size "
+              f"{item['btf_struct_file_size']} (different semantics)")
     print(f"Report: {output}")
     print("Status: OFFLINE TRIAGE ONLY — Root payload NOT validated")
     return 1 if report["failed_checks"] else 0
