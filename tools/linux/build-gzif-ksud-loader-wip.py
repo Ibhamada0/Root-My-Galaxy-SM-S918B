@@ -124,7 +124,20 @@ def check_inputs() -> tuple[bytes, Path]:
         fail("Root helper no longer agrees with KernelSU KMI/package/loader path")
 
     if not shutil.which("cargo") or not shutil.which("rustc"):
-        fail("Rust cargo and rustc required in WSL to build the actual ksud binary")
+        fail(
+            "Rust cargo/rustc missing from WSL PATH. Install official rustup "
+            "(https://rustup.rs/), then run: "
+            'source "$HOME/.cargo/env"; rustup target add aarch64-linux-android'
+        )
+    if shutil.which("rustup"):
+        installed = execute(
+            ["rustup", "target", "list", "--installed"], capture_output=True
+        ).stdout.splitlines()
+        if "aarch64-linux-android" not in installed:
+            fail(
+                "Rust Android ARM64 standard library missing: "
+                "rustup target add aarch64-linux-android"
+            )
     if not shutil.which("readelf"):
         fail("readelf required for ELF verification")
     host = NDK / "toolchains/llvm/prebuilt/linux-x86_64"
