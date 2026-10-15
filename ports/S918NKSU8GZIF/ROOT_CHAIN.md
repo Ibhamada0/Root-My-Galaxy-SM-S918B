@@ -542,6 +542,39 @@ Samsung module signing/admission, and `ksud` integration remain open.
    **KernelSU control verified**, and **SELinux Enforcing restored**.
    Each is a separate milestone, not a single `PASS`.
 
+## Owner-confirmed device state and next guard delta — 2026-10-15
+
+The owner copied the five existing GZIF snapshot artifacts to Android
+using WSL/ADB and confirmed **5/5 local-vs-device SHA-256 matches**.
+A non-root read-only ADB check reported the expected GZIF kernel
+release, SELinux `Enforcing`, **no loaded KernelSU module** and no
+`/data/local/tmp/temp_su.sock`. Running the installed `ksud`
+binary's `--version` returned `ksud 3.4.0 (uapi: 4)` with exit 0.
+This proves userspace execution only, not kernel module admission or root.
+
+Review of the disposable GZIF root-helper safety overlay identified a
+further fail-open case: after successful bind/listen, it did not check
+the return value of `chmod(BOOTSTRAP_SOCK_PATH, 0666)`. If chmod failed,
+the client might be unable to connect while the temporary-root daemon
+waited for the full fuse duration. The host-source overlay now aborts
+that path by closing and unlinking the listener and immediately
+**attempting** restoration of SELinux Enforcing. A narrow source-only
+regression was added at
+`tools/bope/tests/test_gzif_root_helper_guard.py`.
+
+This is **new source, not a rebuilt or tested Android binary**.
+The already transferred device helper has not been updated by the
+GitHub change. New unit tests have been authored, not yet executed
+on the owner's WSL. All previously completed build, 12/12 regression,
+KASLR and hash-verification work is still valid and not repeated.
+
+**NO-GO remains:** no proof of kernel state recovery after futex/FOPS
+mutation, UMH timeout, usermode helper crash, or kernel panic.
+Socket recovery does not ensure module acceptance, KernelSU handoff
+or SELinux restoration if BOPE fails before the root daemon starts.
+The exact donor-derived module is still not a GZIF source-built LKM,
+even though the owner reports the developer believes it compatible.
+
 ## Hard limitations
 
 The GZIF one-shot branch compiles host-side but has not been
