@@ -1381,16 +1381,24 @@ already-passed regressions. `assemble-gzif-rootchain-host-only.py`
 now accepts `--fused-helper-report` to create a separately
 named, hash-checked **host-only** snapshot with the new helper.
 
-**Not yet verified on WSL or device:** the guard overlay,
-new helper compile, watchdog execution, temporary root,
-module load admission and SELinux restoration. The
-watchdog cannot recover from kernel panic, power loss,
+**Owner-confirmed host compilation (2026-10-15):**
+the GZIF-only SELinux-fused root helper built successfully as
+a **29,528-byte ELF64/AArch64 binary** with a separate
+report at
+`~/rmg-firmware/gzif-helper-fuse-builds/s918ngzif-helper-fuse-njug65hu/build-report.json`.
+The host-only report says `HOST_BUILT_FUSE_ONLY`.
+Only the changed root helper was recompiled; existing
+BOPE and `ksud` binaries were not rebuilt.
+
+**Not verified on device:** watchdog execution, temporary
+root, Samsung module admission or SELinux restoration.
+The watchdog cannot recover from kernel panic, power loss,
 simultaneous process deaths or UMH failure before it
 is spawned, and existing sessions may outlive the
 socket accept deadline. These controls do **not** make
 the kernel-mutation exploit safe or authorize deployment.
-See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the single
-required helper-only build command.
+See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the optional
+new host-only five-file assembly with the guarded helper.
 
 ## Remaining validation gates
 
