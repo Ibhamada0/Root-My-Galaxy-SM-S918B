@@ -838,6 +838,44 @@ being used for another diagnosis. Monitor `Instance cleanup: OK`;
 if cleanup fails, preserve the error for inspection and do not
 rerun automatically.
 
+### Owner-reported isolated TraceFS refusal — 2026-10-15
+
+The owner executed the opt-in native Android shell test
+`tools/android/gzif-isolated-trace-smoke.sh` through an ordinary
+non-root ADB shell after transferring the script to the phone.
+The returned output was:
+
+```text
+GZIF_ISOLATED_TRACE_SMOKE_V1
+Mode: separate tracefs instance; 2-second event count; no raw addresses
+Result: INSTANCE_CREATION_DENIED — global tracing untouched
+```
+
+The `mkdir` for
+`/sys/kernel/tracing/instances/rmg_gzif_<shell-pid>` was denied.
+The test **stopped before any event enable or trace sampling**;
+there is no `Instance cleanup` report because a private instance
+was never created. It did not fall back to global TraceFS.
+The precise cause of denial (mode bits, mount/kernel configuration,
+SELinux or other policy) remains **unverified**, and this is **not**
+a finding that KASLR, BOPE or root is impossible.
+
+Earlier user-reported read-only global `tracing_on=0` and
+`sched_blocked_reason/enable=0` values remain the last measured
+baseline; the isolated script does not change those settings.
+Do not call the legacy `SLIDE_ONLY` / resolver a benign fallback:
+that code disables global tracing, truncates the global trace buffer,
+and forces controls off rather than restoring prior values.
+Further attempts to bypass instance permissions or alter system
+trace policy are not authorized by this test outcome.
+
+Next engineering gate: redesign/review BOPE's kernel-base resolver
+**off-device** to make destructive global tracing changes impossible
+by default and allow a safe, explicit abort when a non-disruptive
+diagnostic cannot be run. No root payload, module or global-tracing
+experiments should be performed solely on the strength of these
+results.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
