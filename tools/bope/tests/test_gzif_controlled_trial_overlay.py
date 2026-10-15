@@ -3,6 +3,8 @@
 These tests NEVER run BOPE or touch tracefs/Android.
 """
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import unittest
 
@@ -136,6 +138,73 @@ class ControlledGzifTrialOverlayTests(unittest.TestCase):
             "gzif_trace_finished_ms - gzif_trace_started_ms",
             patched,
         )
+
+    @unittest.skipUnless(shutil.which("cc"), "Host C compiler unavailable")
+    def test_gzif_trace_voting_deduplicates_same_raw_page(self):
+        patched = patch_tracefs(self.tracefs)
+        source = r"""
+#define _GNU_SOURCE
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include "01_kernel_base_tracefs.c"
+
+static int trial(int page_count) {
+    FILE *file = tmpfile();
+    if (!file) return 10;
+    unsigned char page[TARGET_PAGE_SIZE] = {0};
+    const uint16_t event_id = TARGET_TRACE_SCHED_BLOCKED_REASON_ID;
+    const uint64_t slide = 0xa0000ULL;
+    const uint64_t caller =
+        TARGET_KIMAGE_TEXT_BASE + TARGET_WORKER_CALLER_OFF + slide;
+    /* Two duplicate loose-format candidate records IN ONE raw page. */
+    for (size_t pos = 16; pos <= 64; pos += 48) {
+        memcpy(page + pos, &event_id, sizeof(event_id));
+        memcpy(page + pos + TARGET_TRACE_CALLER_OFF,
+               &caller, sizeof(caller));
+    }
+    for (int i = 0; i < page_count; i++)
+        if (fwrite(page, sizeof(page), 1, file) != 1) return 11;
+    fflush(file);
+    rewind(file);
+
+    struct trace_reader reader = {.fd = fileno(file)};
+    unsigned int votes[TARGET_KASLR_CANDIDATE_COUNT] = {0};
+    uint64_t candidate = 0;
+    int found = drain_trace_reader(&reader, votes, &candidate);
+    size_t slot = (size_t)(slide / TARGET_KASLR_ALIGNMENT);
+    int ok = found == (page_count == 2) &&
+             votes[slot] == (unsigned int)page_count &&
+             (page_count != 2 || candidate == slide);
+    fclose(file);
+    return ok ? 0 : 12;
+}
+
+int main(void) {
+    int one = trial(1);
+    if (one) return one;
+    return trial(2);
+}
+"""
+        with tempfile.TemporaryDirectory() as workspace:
+            folder = Path(workspace)
+            (folder / "01_kernel_base_tracefs.c").write_text(patched)
+            (folder / "target.h").write_text((DONOR / "target.h").read_text())
+            harness = folder / "quorum_test.c"
+            harness.write_text(source)
+            executable = folder / "quorum_test"
+            compile_result = subprocess.run(
+                ["cc", "-std=gnu11", "-O0", "-Wall", "-Wextra",
+                 "-Wno-unused-function", str(harness), "-o",
+                 str(executable)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(compile_result.returncode, 0, compile_result.stderr)
+            result = subprocess.run(
+                [str(executable)], capture_output=True, text=True
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_changed_orchestrator_rejected(self):
         changed = self.orchestrator.replace(
