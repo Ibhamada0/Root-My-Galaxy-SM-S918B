@@ -21,7 +21,7 @@ from .common import (
 from .contract import derive_contract, parse_numeric_macros, verify_contract
 from .errors import BopeError
 from .factory import FactoryInfo, extract_factory_boot, inspect_factory
-from .standalone import inspect_standalone_boot, extract_standalone_boot
+from .standalone import inspect_standalone_boot, extract_standalone_boot, verify_standalone_kernel_identity, STANDALONE_AP_ENTRY
 from .kernel import default_kallsyms_finder, default_vmlinux_to_elf, prepare_kernel
 from .kernelsu import prepare_kernelsu
 from .target import (
@@ -110,6 +110,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-kernelsu", action="store_true")
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--integrate-app", action="store_true")
+    parser.add_argument("--expected-kernel-release", help="require this exact uname -r from unpacked kernel")
     parser.add_argument("--keep-failed", action="store_true")
     return parser
 
@@ -360,6 +361,16 @@ def generate(args: argparse.Namespace) -> Path:
             pahole=pahole,
             logs_dir=logs,
         )
+        if info.ap_entry == STANDALONE_AP_ENTRY:
+            verify_standalone_kernel_identity(
+                info, kernel.identity.release,
+                expected_release=args.expected_kernel_release,
+            )
+        elif args.expected_kernel_release and kernel.identity.release != args.expected_kernel_release:
+            raise BopeError(
+                f"unpacked kernel release {kernel.identity.release!r} does not "
+                f"match expected release {args.expected_kernel_release!r}"
+            )
         note("deriving BOPE firmware addresses and layouts from ELF/BTF")
         contract = derive_contract(
             donor_contract,
