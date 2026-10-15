@@ -1400,6 +1400,34 @@ the kernel-mutation exploit safe or authorize deployment.
 See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the optional
 new host-only five-file assembly with the guarded helper.
 
+### Owner-confirmed SELinux-fused five-artifact assembly — 2026-10-15
+
+The owner completed the **host-only** new assembly which replaces
+the original BOPE root helper with the separately built
+**29,528-byte GZIF 180-second SELinux-fused helper** while
+retaining the same original BOPE engine, mm factory,
+stability launcher and KernelSU Next v3.4.0 `ksud`:
+
+```text
+[ASSEMBLED] 5 Android ARM64 host artifacts: /home/ebrahim/rmg-firmware/gzif-rootchain-host-only/s918n-gzif-bope-ksud-candidate-selinux-fuse
+Manifest: /home/ebrahim/rmg-firmware/gzif-rootchain-host-only/s918n-gzif-bope-ksud-candidate-selinux-fuse/rootchain-manifest.json
+Status: HOST_ONLY_NOT_ROOT_READY; no device actions
+```
+
+**No repeat of already-completed host builds/regressions or live
+KASLR is warranted.** The remaining specific blockers
+are BOPE's unvalidated kernel-mutation/temporary-root path
+and admission of a compatible KernelSU module on Samsung's
+exact GZIF kernel. The user's kernel config contains
+`CONFIG_MODULE_SIG_PROTECT=y`, which makes protected
+GKI symbol access/export policy material to module
+admission even if `CONFIG_MODULE_SIG_FORCE` is off.
+The present ZZI8-derived `.ko` has only a rewritten
+`vermagic` field; 139 matched modversion CRCs do not
+establish compatibility or permitted symbol use.
+See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the exact upstream
+GKI behavior and this independent NO-GO boundary.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
