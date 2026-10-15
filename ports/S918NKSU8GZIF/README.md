@@ -1254,6 +1254,49 @@ on the physical SM-S918N.
 and TraceFS `0/0` restoration. This is not
 kernel mutation, temporary root, or KernelSU load.
 
+### Owner-confirmed live GZIF two-page KASLR success — 2026-10-15
+
+The owner ran the updated `s918ngzif-7cjfl28m` guarded
+`GZIF_KASLR_ONLY` payload on the physical SM-S918N
+and confirmed:
+
+```text
+TraceFS before: 0/0
+[BOPE] stage=gzif-kaslr-only no-root-preflight no-kernel-mutation
+[BOPE] stage=gzif-kaslr-distinct-pages-quorum=2
+[BOPE] stage=gzif-tracefs-live-capture-ms=67
+[kaslr] source=tracefs base=(redacted) slide=(redacted) p0_offset=(redacted) votes=2 sample_ms=2
+[BOPE] stage=gzif-kaslr-resolved root-not-attempted
+[BOPE] stage=gzif-kaslr-child-completed root-not-attempted
+[BOPE] stage=gzif-kaslr-only-success root-not-attempted
+TraceFS after: 0/0
+KASLR exit code: 0
+```
+
+**Observed success:** updated BOPE loaded and ran on GZIF;
+it found a candidate passing two votes drawn from **two separately
+read raw TraceFS pages**. The capture-inclusive window was
+67 ms; the old post-prime read window was 2 ms. The reported
+candidate was consistent with the previous test on this boot.
+Global tracing controls were `0/0` before and after.
+The initial 12 host tests have been confirmed PASS,
+and the four NDK binaries built successfully.
+
+**Explicitly not proven:** no direct independent validation
+of the candidate kernel address; TraceFS rings may retain
+older records, even though the separate-page quorum now
+reduces duplicated-record failure modes. **No futex/slab
+kernel mutation, kernel R/W, temporary root helper, SELinux
+change, KernelSU module load or persistent root occurred.**
+
+**Next engineering gate:** validate the *actual* root helper
+and binfmt/UMH path against the target userland and protected
+kernel policy, and review the donor-inherited futex allocator
+and recovery assumptions before any device kernel-mutation
+attempt. This completed KASLR-only experiment need not be
+repeated without new diagnostic need. The analysis-only
+vermagic-patched donor KSU module remains off-device.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
