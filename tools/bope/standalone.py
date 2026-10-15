@@ -79,3 +79,18 @@ def extract_standalone_boot(
         output.unlink(missing_ok=True)
         raise
     return output
+
+
+def verify_standalone_kernel_identity(
+    info: FactoryInfo, release: str, *, expected_release: str | None = None
+) -> None:
+    """Refuse mismatched boot/kernel identity before staging root artifacts."""
+    suffix = f"-ab{info.post_build}"
+    if not release.endswith(suffix):
+        raise BopeError(
+            f"boot/kernel release {release!r} does not end with target build {suffix!r}"
+        )
+    if expected_release is not None and release != expected_release:
+        raise BopeError(
+            f"boot/kernel release {release!r} differs from expected {expected_release!r}"
+        )
