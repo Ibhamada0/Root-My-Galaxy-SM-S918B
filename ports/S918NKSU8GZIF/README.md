@@ -1357,6 +1357,41 @@ kernel-execution, temporary-root and KernelSU loading gates.
 No repeat of already-passed BOPE KASLR or host regressions
 is called for.
 
+### GZIF SELinux fallback fuse in controlled root helper — 2026-10-15
+
+Follow-up code review of the original BOPE temporary-root
+bootstrap found that a successful UMH result leaves SELinux
+permissive until a **later, separate** KernelSU `late-load`
+request restores enforcing. A socket that receives no
+late-load request may otherwise remain open indefinitely.
+
+Added `tools/linux/gzif_root_helper_guard.py` and
+`tools/linux/build-gzif-fused-helper-only.py` as
+**GZIF-specific, isolated-source host tools**. They overlay
+the generated root helper (not the shared donor), add
+a separate best-effort **180-second watchdog** that
+attempts SELinux enforcing restoration, and limit new
+temporary-root socket accepts to the same deadline.
+Socket setup errors attempt immediate recovery.
+
+The new builder compiles **only** the modified helper,
+reusing the existing successful native build report and
+source; it does not rebuild BOPE/ksud or repeat their
+already-passed regressions. `assemble-gzif-rootchain-host-only.py`
+now accepts `--fused-helper-report` to create a separately
+named, hash-checked **host-only** snapshot with the new helper.
+
+**Not yet verified on WSL or device:** the guard overlay,
+new helper compile, watchdog execution, temporary root,
+module load admission and SELinux restoration. The
+watchdog cannot recover from kernel panic, power loss,
+simultaneous process deaths or UMH failure before it
+is spawned, and existing sessions may outlive the
+socket accept deadline. These controls do **not** make
+the kernel-mutation exploit safe or authorize deployment.
+See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the single
+required helper-only build command.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
