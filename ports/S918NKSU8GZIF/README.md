@@ -1113,12 +1113,18 @@ latest staged payload or treating temporary UMH access as a
 working KernelSU root install is not justified by the observed
 results. **No exploit was triggered, and root remains unverified.**
 
-A completely separate rooting route, if the owner discovers
-their bootloader already unlocked or unlockable, is Samsung AP
-firmware patching via Magisk and Odin, following the official
-Magisk installation documentation. That route is not part of
-BOPE and also entails Knox changes and data loss:
-https://topjohnwu.github.io/Magisk/install
+## BOPE + KernelSU Next full-root integration (not Magisk)
+
+The exact source-level root chain, late-load state transitions,
+kernel module provenance gap, SELinux/UMH restoration requirements and
+next kernel-engineering milestones are documented in
+[ROOT_CHAIN.md](ROOT_CHAIN.md).
+
+The owner's reported state remains: **8/8 overlay tests PASS, four
+Android NDK outputs built, on-device `stability-launcher --check-only`
+PASS; no live BOPE kernel mutation, temporary-root result or KernelSU
+module admission has been observed.** A future temporary root socket
+must not be reported as a completed KernelSU root installation.
 
 ## Remaining validation gates
 
