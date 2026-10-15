@@ -76,6 +76,45 @@ stability test. It does **not** build an exact GZIF module, and it
 does not copy, load or flash anything on the phone. A source tree
 for the exact GZIF kernel/DDK build environment is still required.
 
+## Exact-kernel module build gate
+
+A source-only WSL builder was added:
+
+[`tools/linux/build-gzif-kernelsu-module-wip.sh`](../../tools/linux/build-gzif-kernelsu-module-wip.sh)
+
+It accepts **one** `KDIR` argument and refuses to compile if the
+prepared kernel build does not contain the exact GZIF release in
+`include/config/kernel.release` and `include/generated/utsrelease.h`,
+the live-device-compatible module Kconfig settings,
+`Module.symvers`, `vmlinux`, generated configuration and an executable
+`scripts/mod/modpost`. It validates the pinned upstream source commit,
+copies KernelSU to a disposable host workspace, and builds through
+Kbuild without modifying the phone.
+
+```bash
+# Run ONLY after obtaining an independently matched, fully prepared
+# SM-S918N / S918NKSU8GZIF kernel build directory with Module.symvers.
+bash tools/linux/build-gzif-kernelsu-module-wip.sh /actual/prepared/GZIF-KDIR
+```
+
+A firmware AP archive or an extracted `boot.img`/`vmlinux` is **not**
+a Kbuild tree. Raw Samsung GPL kernel source alone generally also
+lacks the generated artifacts or matching `Module.symvers`; a
+reproducible matching kernel build is required first.
+Samsung publishes mobile kernel source packages through its
+[Open Source Release Center](https://opensource.samsung.com/).
+Search for `SM-S918N` and the exact `S918NKSU8GZIF` version;
+**availability of this exact version was not confirmed**. If not
+available, the site's
+[Source-code inquiry](https://opensource.samsung.com/requestInquiry)
+offers a request channel.
+
+Even if Kbuild finishes and the output has matching `vermagic`, a
+device-specific rebuild is **not** proof of module acceptance or
+stability. The resulting `.ko` remains WIP/off-device, and the
+source-to-running-binary provenance, GKI protected-export policy,
+Samsung module signing/admission, and `ksud` integration remain open.
+
 ## Implementation order (no repeat of completed smoke tests)
 
 1. Identify the actual target GKI toolchain/build configuration
