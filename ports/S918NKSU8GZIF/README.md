@@ -1026,6 +1026,50 @@ be bypassed. This test is **not** risk-free and not proof of exploit
 readiness. Do not transfer or run the root helper or payload in this
 diagnostic stage.
 
+### On-device launcher check-only PASS — 2026-10-15
+
+The owner executed the *actual GZIF-built* stability launcher on the
+physical SM-S918N with `--check-only` using ADB shell. Console report:
+
+```text
+[launcher] mm-geometry=pass size=1024 per=32 pages=8 active=592 total=704
+[launcher] gate s918ngzif-fresh: 3 amostras/2s (fast 2/1s) temp<=48C mem>=1GB tarefas<=8 PSI<=25/3/5 uptime>=60s mm-delta<=64 pipe=480x32 timeout=300s
+[launcher] pipe-gate=pass pipes=480 target_pages=32
+[launcher] gate=1/3 phase=fast temp=38.0C mem=3264MB runnable=1 load=0.77 psi=3.25/0.02/0.04 mm=592/704 slabs=22 dmm=0 uptime=55375s boot=1 se=1
+[launcher] gate=2/3 phase=fast temp=38.0C mem=3264MB runnable=1 load=0.77 psi=3.20/0.01/0.03 mm=592/704 slabs=22 dmm=0 uptime=55376s boot=1 se=1
+[launcher] mm-geometry=pass size=1024 per=32 pages=8 active=592 total=704
+[launcher] estabilidade confirmada: métricas+slab+pipe
+```
+
+**Result: runtime stability gate passed.** The 480-pipe resizing
+probe completed, the live mm_struct geometry matched the header,
+the device remained enforcing and the short fast profile met thresholds.
+`--check-only` returned before setting `LD_PRELOAD`: no BOPE exploit
+or root helper was executed. The console excerpt does not include
+the actual process exit code; success is inferred from the successful
+final launcher line. Kernel heap reclaim and futex timing remain
+unverified. A pass here is **not root readiness**.
+
+Post-review the source overlay gained a **separate** pre-root
+`GZIF_KASLR_ONLY` mode (commit `b8eb590`) that calls the KASLR
+resolver before any `root_umh_preflight` file writes/trigger exec,
+without touching kernel heap/futex. The ordinary donor
+`SLIDE_ONLY`, `P0_ONLY` and `PIPE_PREFLIGHT_ONLY` are refused
+in this overlay because they may run root preparation first.
+The root-mutation path also requires a distinct acknowledgement
+`GZIF_KERNEL_MUTATION_ACK`; merely permitting KASLR must
+not accidentally authorize root payload execution.
+
+KASLR-only **is still a live tracing experiment**: the resolver
+enables global TraceFS temporarily and reads consumptive
+`trace_pipe_raw` records. The cleanup is best effort on normal
+completion, and SIGKILL/abrupt reboot may leave tracing enabled.
+No KASLR diagnostic or kernel mutation has yet been executed.
+
+After this source modification the previous four-artifact build is
+**stale** and must not be used for new diagnostic mode; host overlay
+regressions and NDK rebuild must be repeated.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
