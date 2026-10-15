@@ -253,6 +253,70 @@ assembled host-only tool has been observed on the owner's WSL
 as of this note. Do not repeat successful device KASLR tests
 to validate a packaging operation.
 
+### GZIF-only bounded SELinux fallback (new source, NOT DEVICE-VALIDATED)
+
+The source review identified a specific unbounded waiting failure
+after a successful UMH temporary-root bootstrap: the original root
+daemon waits indefinitely for a `late-load` request to complete the
+SELinux restoration. To reduce this exposure, the **disposable
+GZIF-controlled-build copy only** now supports a new
+`gzif_root_helper_guard.py` source overlay.
+
+It adds an **180-second** monotonic watchdog, forked as a distinct
+userspace process when the root daemon starts. At the deadline,
+the watchdog attempts to write `1` to
+`/sys/fs/selinux/enforce`; the root daemon itself uses a bounded
+`poll` wait to stop accepting new temporary-root socket requests,
+unlink `/data/local/tmp/temp_su.sock`, and attempt the same
+enforcing-state restoration. Socket setup errors make an immediate
+restoration attempt. The accepted sockets remain blocking to
+preserve the original helper's request protocol.
+
+**This is not a guarantee:** the watchdog cannot run when the
+kernel panics, both processes die, or the UMH bootstrap never
+starts it. Requests already in progress may continue beyond the
+acceptance deadline. Restoration during a long KernelSU load
+can cause the load to fail. The separate BOPE kernel-memory
+restoration and donor module admission risks are unchanged.
+
+To compile **only** the changed helper, without repeating the
+previously successful BOPE native build, Rust/Cargo or KASLR tests:
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+python3 tools/linux/build-gzif-fused-helper-only.py
+```
+
+The script reuses the owner-confirmed previous native build
+report `s918ngzif-7cjfl28m`, copies the generated GZIF helper
+into a new host-only workspace, applies the safety overlay
+there (never in donor source), invokes **only the root helper
+NDK compiler**, verifies resulting ARM64 ELF and marker
+strings, then writes `build-report.json` and a source-overlay
+report. Its output is not approved for a device root test.
+
+For a new **host-only** five-file integrity snapshot with
+the guarded helper replacing the old one, pass the generated
+fused-helper `build-report.json` path, shown at build
+completion, to:
+
+```bash
+python3 tools/linux/assemble-gzif-rootchain-host-only.py \
+  --fused-helper-report /actual/s918ngzif-helper-fuse-.../build-report.json
+```
+
+The assembler chooses a new `-selinux-fuse` output folder
+and rejects files whose original build hash/provenance
+does not agree with the previous BOPE report. This
+snapshot contains no deploy or exploit commands.
+
+**Progress status:** committed and awaiting owner-side
+compilation. No GZIF on-device kernel mutation,
+temporary-root socket, live watchdog behavior or
+KernelSU load has been observed. The retained
+`HOST_ONLY_NOT_ROOT_READY` status is correct.
+
 ### SELinux restoration sequencing gap — source review
 
 Source-level review after the completed five-file assembly found a
