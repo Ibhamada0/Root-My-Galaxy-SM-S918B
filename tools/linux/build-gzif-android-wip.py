@@ -36,7 +36,7 @@ def parse_header_string_macro(header: str, name: str) -> str:
     pattern = re.compile(
         rf'^[ \t]*#define[ \t]+{re.escape(name)}'
         r'(?:[ \t]+\\\r?\n[ \t]*|[ \t]+)'
-        r'"([^"\r\n]*)"[ \t]*$',
+        r'"([^"\r\n]*)"[ \t]*\r?$',
         re.MULTILINE,
     )
     matches = pattern.findall(header)
