@@ -390,6 +390,24 @@ def _replace_string(text: str, name: str, value: str) -> tuple[str, str]:
     return text[: match.start()] + replacement + text[match.end() :], old
 
 
+def normalize_firmware_contract_comment(text: str, *, model: str, build: str) -> str:
+    """Replace inherited donor identity in the prose header without altering macros.
+
+    Some Samsung donor headers split the outdated firmware description over
+    two lines (e.g. "latest One UI 9 Beta 2" / "firmware."). Never
+    carry that outdated marketing/version prose into a generated target.
+    """
+    pattern = (
+        r"(?m)^ \* Firmware contract for [^\n]+"
+        r"(?:\n \* firmware\.)?"
+    )
+    replacement = (
+        f" * Firmware contract for {model} / {build} "
+        "(generated WIP; device validation required)."
+    )
+    return re.sub(pattern, lambda _: replacement, text, count=1)
+
+
 def derive_contract(
     donor_header: Path,
     output_header: Path,
@@ -406,7 +424,9 @@ def derive_contract(
     llvm_nm: Path,
     pahole: Path,
 ) -> ContractResult:
-    text = donor_header.read_text()
+    text = normalize_firmware_contract_comment(
+        donor_header.read_text(), model=model, build=build
+    )
     symbols = parse_symbols(elf, llvm_nm)
     old_numeric = parse_numeric_macros(donor_header)
     base = symbols.get("_text", old_numeric.get("TARGET_KIMAGE_TEXT_BASE"))
