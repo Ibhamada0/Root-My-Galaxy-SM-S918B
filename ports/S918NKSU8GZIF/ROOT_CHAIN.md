@@ -647,8 +647,11 @@ Host-only validation (the audit's exit 2 is the expected NO-GO):
 cd ~/Root-My-Galaxy-GZIF
 git pull --ff-only origin port/s918n-gzif-android17
 python3 -m unittest tools.bope.tests.test_gzif_root_helper_guard tools.bope.tests.test_gzif_kernel_recovery_audit -v
-python3 tools/linux/audit_gzif_kernel_recovery.py
-echo "Recovery audit exit code (expected 2): $?"
+if python3 tools/linux/audit_gzif_kernel_recovery.py; then
+  echo "Unexpected audit exit 0; manual review required"
+else
+  echo "Recovery audit exit code (expected 2): $?"
+fi
 ```
 
 Once only the new tests pass, if a new helper artifact is wanted,
