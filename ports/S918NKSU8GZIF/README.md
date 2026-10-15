@@ -640,6 +640,49 @@ device loadability from this check. The GZIF WIP file must remain in
 the `analysis-only` directory and **must not be insmod'ed, signed,
 deployed, flashed, or presented as a working KernelSU port**.
 
+## GZIF first isolated Android build — 2026-10-15
+
+After the owner agreed to proceed with a backup and accepted test risks,
+the work moved from individual ABI checks to producing the first **Android
+NDK-compiled WIP binaries**. The added host-only
+`tools/linux/build-gzif-android-wip.py` requires:
+
+- The existing owner-generated, ELF/BTF-verified
+  `~/rmg-firmware/gzif-contracts/s918ngzif-WIP` manifest/contract
+- All five exact SM-S918N / GZIF identity macros
+- Android NDK (tested path expected:
+  `~/Android/Sdk/ndk/28.2.13676358` with API-35 Clang)
+- Ubuntu `make` and `readelf`
+
+Run on **Ubuntu WSL2**, without ADB or a device connection:
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+source .venv/bin/activate
+python3 tools/linux/build-gzif-android-wip.py
+```
+
+If the NDK is missing, the script fails before any build and prints the
+required compiler path. An installed NDK elsewhere can be passed as
+`--ndk /path/to/android-ndk`. It never downloads tools or changes
+the system setup.
+
+The script **copies** the generated GZIF engine/helper and shared
+`native/` and `stability-launcher/` source trees into a new isolated
+`~/rmg-firmware/gzif-android-builds/s918ngzif-*/` workspace. It
+builds `payload.so`, the mm-exec factory, stability launcher and root
+helper, runs existing three host regressions, and checks the outputs
+are ELF64/AArch64 before writing a local `build-report.json`.
+It retains full build logs for failures.
+
+**A successful compile is not a device test.** No file is copied into
+the repository, Android app or phone, and the KernelSU module is not
+loaded. All inherited futex timing, reclaim behavior, trace ring
+framing, GKI security policy, and runtime stability gates remain open.
+Do not deploy or execute any WIP binary while the on-device test
+protocol and recovery plan are incomplete.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
