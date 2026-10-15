@@ -574,8 +574,31 @@ the literal source anchor expected by the older bind/listen cleanup
 transformation. Commit `37957836` moved the chmod transformation **after**
 bind/listen cleanup in the GZIF overlay. Source-pattern verification
 confirmed both replacements retain distinct anchors in the original
-donor; the corrected Python regression and helper NDK rebuild still
-await owner's WSL run. No Android operation occurred during this failure.
+donor; the corrected Python regression and helper NDK rebuild were then
+rerun successfully on owner's WSL. No Android operation occurred during the failed run.
+
+**Owner-confirmed corrected GZIF helper guard (2026-10-15):** the
+dedicated five new source-only regression tests completed with `OK`,
+and recompilation of **only** the root helper succeeded:
+
+```text
+[SOURCE] Copied previous GZIF helper to isolated host workspace
+[GZIF] 180-second independent SELinux restoration fuse + socket expiry
+[BUILD] Recompiling ONLY root helper (no BOPE/KSU/test reruns)
+[BUILT] guarded root_helper: ELF64/AArch64 (29592 bytes)
+Report: /home/ebrahim/rmg-firmware/gzif-helper-fuse-builds/s918ngzif-helper-fuse-b34owbef/build-report.json
+Status: HOST_BUILT_FUSE_ONLY; root and device load NOT validated
+```
+
+The **29,592-byte** helper supersedes the previous **29,528-byte**
+GZIF guard build for new host-source analysis. It adds fail-closed
+cleanup when `chmod` of the temporary-root listener fails and retains
+the existing 180-second watchdog and bind/listen failure cleanup.
+This new helper has **not been assembled into a new five-file bundle**
+or installed on Android. The previously hash-verified five-file
+device snapshot and previous host-only assembly remain **older binary
+versions**. Running these new tests does not validate kernel mutation,
+SELinux recovery on device or Samsung KernelSU module admission.
 
 **NO-GO remains:** no proof of kernel state recovery after futex/FOPS
 mutation, UMH timeout, usermode helper crash, or kernel panic.
