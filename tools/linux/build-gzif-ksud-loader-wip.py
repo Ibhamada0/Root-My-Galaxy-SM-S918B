@@ -77,11 +77,29 @@ def check_inputs() -> tuple[bytes, Path]:
         fail("Upstream KernelSU source checkout has uncommitted changes")
 
     audit = json.loads(AUDIT.read_text())
+    # check-gzif-ksu-retarget.py delegates to audit_module(), whose report
+    # stores the full target release in "vermagic" (NOT "target_release").
+    # Validate the producer's real schema and the substantive ABI checks.
     if (audit.get("passed") is not True
-            or audit.get("target_release") != RELEASE
+            or not isinstance(audit.get("vermagic"), str)
+            or not audit["vermagic"].startswith(RELEASE + " ")
             or audit.get("evaluation") != "METADATA_ONLY_LOCAL_WIP_CANDIDATE"
             or audit.get("status") != "NOT_DEVICE_VALIDATED_NOT_APPROVED_TO_LOAD"):
-        fail("Existing donor-module static audit was not an exact GZIF pass")
+        fail(
+            "GZIF static audit is not an exact PASS "
+            "(passed/vermagic/evaluation/status mismatch)"
+        )
+    for key in (
+        "missing_symbols", "crc_mismatches", "missing_crc_targets",
+        "btf_mismatches", "relocation_mismatches",
+    ):
+        if audit.get(key) not in ([], {}):
+            fail(f"GZIF static audit has missing or nonempty {key}")
+    if (audit.get("module_version_entries") != 139
+            or audit.get("matched_symbol_crcs") != 139):
+        fail("GZIF static audit does not match all 139 module CRC entries")
+    if not str(audit.get("layout_check", "")).startswith(("btf:", "dwarf:")):
+        fail("GZIF static audit lacks kernel layout evidence")
 
     donor = DONOR.read_bytes()
     if sha256(donor) != DONOR_SHA256:
@@ -94,6 +112,8 @@ def check_inputs() -> tuple[bytes, Path]:
     actual = CANDIDATE.read_bytes()
     if actual != expected:
         fail("Candidate is not the EXACT one-field vermagic-only donor copy")
+    if audit.get("sha256") != sha256(actual):
+        fail("GZIF static audit module SHA-256 does not match the actual candidate")
     if audit.get("donor_sha256") != DONOR_SHA256:
         fail("Static audit did not refer to the pinned donor module")
 
