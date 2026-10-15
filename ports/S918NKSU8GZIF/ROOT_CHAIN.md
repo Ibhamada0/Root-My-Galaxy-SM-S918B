@@ -7,6 +7,40 @@
 **Status (2026-10-15): WIP. No kernel exploit, temporary root or KernelSU
 load was performed or observed on the physical SM-S918N.**
 
+## Verified live BOPE kernel-base stage — 2026-10-15
+
+Owner-confirmed **updated GZIF KASLR-only** run on the
+physical SM-S918N, with the rebuilt two-page quorum logic:
+
+- `stage=gzif-kaslr-distinct-pages-quorum=2`
+- `stage=gzif-tracefs-live-capture-ms=67`
+- Kernel slide resolver `votes=2 sample_ms=2`
+- `stage=gzif-kaslr-resolved root-not-attempted`
+- `TraceFS before: 0/0` and `TraceFS after: 0/0`
+- Process exited `0`; absolute kernel addresses **not recorded**.
+
+The execution verifies that **the kernel-base discovery mechanism
+ran and produced a candidate from separately read raw trace pages**,
+not independent proof that the candidate is the true runtime text
+base. This result does not validate the donor-inherited
+allocator/futex exploitation chain.
+
+**Distinct next stage:** BOPE's `do_one_attempt` requires a native
+root helper and an `mm_exec_factory`, then calls
+`root_umh_preflight`, `oss_prepare_kernel_rw_path`,
+`cpu_discovery_select`, `kaslr_locate_via_tracefs`,
+`groom_and_install_fops_object` and the futex trigger.
+The UMH preflight **does real filesystem staging and an invalid
+binfmt `execve`**; it is not a no-effect check.
+The root helper later depends on changing the kernel's static UMH
+path and SELinux enforcing state through kernel memory writes,
+with cleanup paths and recovery consequences.
+
+**The original ZZI8 KernelSU module must not be treated as a
+verified GZIF loadable module**. No temporary root or KSU load
+has occurred, so no automatic root-run command is published
+from the KASLR-only result.
+
 ## Exact chain in the existing source
 
 1. `stability-launcher` checks runtime resources then starts BOPE with
