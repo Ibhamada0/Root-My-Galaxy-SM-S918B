@@ -17,6 +17,24 @@ embedded BTF was validated with `pahole -F btf -C task_struct`. This does **not*
 establish a working BOPE or KernelSU port.
 
 
+## Physical device identity preflight — 2026-10-15
+
+**Read-only verification completed, as reported from Windows PowerShell**:
+
+- `Device identity: IDENTITY_MATCH`
+- `SELinux: Enforcing (read-only)`
+- Script: `tools/windows/verify-s918n-gzif.ps1`
+- Input: the exact `SM-S918N / S918NKSU8GZIF` identity described below
+- Evidence scope: user-provided console output; the full local JSON report
+  has **not** been uploaded
+- No device serial number or other user-identifying details recorded here
+
+This checkpoint confirms **runtime identity only** and must not be interpreted
+as an exploit test, root success, stability validation, or authorization to
+enable the firmware profile in the public Android app. The next environment
+check is Windows `wsl --status` and `wsl -l -v`, followed by independent ELF /
+kallsyms reconstruction before any BOPE build or target integration.
+
 ## Windows ADB preflight
 
 On Windows, follow the read-only [PowerShell/ADB setup guide](../../tools/windows/README.md) and run the [SM-S918N GZIF identity check](../../tools/windows/verify-s918n-gzif.ps1) before attempting any device-side validation. This check does not root, modify, or flash the phone.
