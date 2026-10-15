@@ -70,7 +70,7 @@ if [[ -n "$(git -C "$source_dir" status --porcelain)" ]]; then
   exit 2
 fi
 
-for tool in git make clang llvm-readelf modinfo sha256sum python3; do
+for tool in git make clang readelf modinfo sha256sum python3; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "[ERROR] Host tool missing: $tool" >&2
     exit 2
@@ -80,7 +80,7 @@ if [[ ! -x "$kdir/scripts/mod/modpost" ]]; then
   echo "[ERROR] Kernel modpost must be executable (full prepared Kbuild tree)" >&2
   exit 2
 fi
-if [[ "$(llvm-readelf -h "$kdir/vmlinux" 2>/dev/null | grep -c 'Machine:.*AArch64' || true)" -ne 1 ]]; then
+if [[ "$(readelf -h "$kdir/vmlinux" 2>/dev/null | grep -c 'Machine:.*AArch64' || true)" -ne 1 ]]; then
   echo "[ERROR] Matched KDIR vmlinux must be ELF AArch64" >&2
   exit 2
 fi
@@ -113,7 +113,7 @@ if [[ ! -s "$ko" ]]; then
   echo "[ERROR] No kernelsu.ko produced; inspect $log" >&2
   exit 2
 fi
-if ! llvm-readelf -h "$ko" | grep -q 'Machine:.*AArch64'; then
+if ! readelf -h "$ko" | grep -q 'Machine:.*AArch64'; then
   echo "[ERROR] KernelSU output architecture is not AArch64" >&2
   exit 2
 fi
