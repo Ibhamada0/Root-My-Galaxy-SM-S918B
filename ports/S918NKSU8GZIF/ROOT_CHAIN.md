@@ -200,6 +200,59 @@ device test/flash/load is justified just by the successful Cargo
 build. Do not repeat completed 12/12 host regressions or KASLR
 tests merely to confirm this host-build result.
 
+## Five-artifact BOPE + KernelSU host-only assembly
+
+The owner has already completed **both** the guarded BOPE native
+build and the pinned KernelSU Next `ksud` Cargo cross-build.
+No further host regressions or KASLR repetitions are needed merely
+to put those binaries together.
+
+`tools/linux/assemble-gzif-rootchain-host-only.py` assembles the
+existing **four BOPE native binaries plus actual Android ARM64
+`ksud-selected.WIP`**, using their original `build-report.json`
+files and the prior positive donor-module static audit. It checks
+ELF architecture, original SHA-256 and byte count, root-helper
+late-load path/KMI/manager identifier in the **compiled binary**,
+the pinned upstream KSU commit, and the `ksud` embedded module
+hash against the audited GZIF-vermagic donor candidate.
+
+It does **not** rerun builds or regressions, call ADB, execute
+BOPE, insmod any module, change SELinux, or flash anything.
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+python3 tools/linux/assemble-gzif-rootchain-host-only.py
+```
+
+Expected local output if both previously reported build
+directories are still present:
+
+```text
+~/rmg-firmware/gzif-rootchain-host-only/s918n-gzif-bope-ksud-candidate/
+  READ_ME_FIRST.txt
+  rootchain-manifest.json
+  HOST_ONLY_NOT_FOR_DEVICE/
+    payload.so
+    mm-exec-factory
+    stability-launcher-s918ngzif
+    cve-2026-43499-root
+    ksud-selected.WIP
+```
+
+The copies are deliberately **non-executable (mode 0600)**
+and labeled **HOST_ONLY_NOT_FOR_DEVICE**. This is an
+integrity/provenance snapshot, not a deployment script.
+Running it does not produce a Samsung-compatible
+kernel module or establish that the existing donor-derived
+module can load. The manifest explicitly retains
+`full_root_ready: false` and `deployable: false`.
+
+**Status:** GitHub script added; no execution of the newly
+assembled host-only tool has been observed on the owner's WSL
+as of this note. Do not repeat successful device KASLR tests
+to validate a packaging operation.
+
 ## Exact-kernel module build gate
 
 A source-only WSL builder was added:
