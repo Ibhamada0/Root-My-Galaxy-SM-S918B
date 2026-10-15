@@ -1297,6 +1297,38 @@ attempt. This completed KASLR-only experiment need not be
 repeated without new diagnostic need. The analysis-only
 vermagic-patched donor KSU module remains off-device.
 
+### Pinned KernelSU Next ksud integration builder — 2026-10-15
+
+The actual BOPE root helper's late-load route expects
+`/data/local/tmp/ksud-selected`, a separate userspace executable
+that the existing four-artifact GZIF BOPE NDK builder never produces.
+
+The upstream **KernelSU Next v3.4.0** implementation of `ksud
+late-load` selects the embedded `android13-5.15_kernelsu.ko`
+module, calls the `ksuinit` `init_module` loader (with
+symbol relocation support and a conditional vermagic fallback),
+then checks its control channel. The original ZZI8 prebuilt
+module still has unproven Samsung/GZIF load admission.
+
+Added host-only `tools/linux/build-gzif-ksud-loader-wip.py`,
+which makes an isolated copy of the previously pinned
+`1a879d6` upstream source, checks the unchanged developer
+module against its known SHA-256, confirms the local GZIF
+metadata-only candidate differs **only** in the vermagic
+field and has the previously generated successful static audit,
+embeds that module into the exact RustEmbed KMI asset path,
+and builds the actual AArch64 Android `ksud` via Cargo/NDK.
+The output is named `ksud-selected.WIP` and its provenance
+is saved in a local JSON report.
+
+**This is a new integration builder, not a confirmed owner build**:
+the owner has not yet reported its Cargo result. It is
+explicitly off-device, unsigned and not a supported root install.
+No Samsung kernel module admission or BOPE kernel mutation
+has been validated by constructing this userspace loader.
+See [ROOT_CHAIN.md](ROOT_CHAIN.md) for the build command and
+remaining separate root gates.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
