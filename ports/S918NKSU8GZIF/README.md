@@ -275,6 +275,36 @@ and re-run `python3 tools/linux/audit-gzif-inherited.py`.
 A clean `5/5` only confirms those five structural invariants and does
 not enable device execution or support.
 
+### Owner-confirmed corrected inherited audit — 2026-10-15
+
+With commit `c2fae0d601f8be21f757c3b10999336df6b4895e`
+checked out in Ubuntu WSL2, the owner reported:
+
+- `python3 -m unittest tools.bope.tests.test_inherited_cache_observation -v`:
+  **3 passed**.
+- `python3 tools/linux/audit-gzif-inherited.py`:
+  **5/5 offline structural checks passed**.
+- `TARGET_FILE_CACHE_SIZE` remains explicitly
+  **UNVERIFIED_SLAB_OBJECT_SIZE**: inherited cache size 320 versus
+  `sizeof(struct file) = 264` from BTF. Those are different quantities,
+  and the current donor's reference to this macro is under `#if 0`.
+- Report remains local at
+  `~/rmg-firmware/gzif-contracts/s918ngzif-WIP/inherited-offline-audit.json`.
+
+**No device execution, root access, or build was performed.**
+
+One additional live-runtime inheritance still blocks deployment:
+`TARGET_TRACE_SCHED_BLOCKED_REASON_ID = 108` is a ZZI8 donor value,
+not an independently checked GZIF trace event ID. The BOPE tracefs
+KASLR resolver in `01_kernel_base_tracefs.c` **writes** tracing state
+(`tracing_on` and `sched_blocked_reason/enable`) and must not be run
+just to discover this ID. A non-root, read-only ADB probe may attempt to
+read the kernel's `/sys/kernel/tracing/events/sched/sched_blocked_reason/id`.
+If access is denied or the file is absent, record it as **UNAVAILABLE**;
+do not use `su`, change SELinux, remount tracefs, or assume 108. Even
+an ID match alone would not validate the KASLR leak, slide geometry,
+memory reclamation, or root payload.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
