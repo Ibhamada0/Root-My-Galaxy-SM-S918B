@@ -17,6 +17,10 @@ embedded BTF was validated with `pahole -F btf -C task_struct`. This does **not*
 establish a working BOPE or KernelSU port.
 
 
+## Windows ADB preflight
+
+On Windows, follow the read-only [PowerShell/ADB setup guide](../../tools/windows/README.md) and run the [SM-S918N GZIF identity check](../../tools/windows/verify-s918n-gzif.ps1) before attempting any device-side validation. This check does not root, modify, or flash the phone.
+
 ## Verified BTF ABI audit (completed offline)
 
 The user-supplied boot was decompressed to an Android boot-v4 image; its kernel
