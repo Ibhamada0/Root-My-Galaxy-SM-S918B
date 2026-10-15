@@ -107,6 +107,36 @@ class ControlledGzifTrialOverlayTests(unittest.TestCase):
         self.assertIn("gzif_tracefs_reset(tracing_on, event_enable)", patched)
         self.assertIn("prime_block_io();", patched)
 
+    def test_gzif_kaslr_requires_votes_from_distinct_raw_pages(self):
+        patched = patch_tracefs(self.tracefs)
+        self.assertIn(
+            "unsigned int page_votes[TARGET_KASLR_CANDIDATE_COUNT] = {0}",
+            patched,
+        )
+        self.assertIn(
+            "(void)parse_trace_page(page, (size_t)got, page_votes,",
+            patched,
+        )
+        self.assertIn("if (!page_votes[slot]) continue;", patched)
+        self.assertIn("if (votes[slot] < UINT32_MAX) votes[slot]++;", patched)
+        self.assertIn("stage=gzif-kaslr-distinct-pages-quorum", patched)
+        self.assertNotIn(
+            "if (parse_trace_page(page, (size_t)got, votes, candidate_out))",
+            patched,
+        )
+
+    def test_gzif_kaslr_capture_duration_includes_prime_io(self):
+        patched = patch_tracefs(self.tracefs)
+        self.assertLess(
+            patched.index("uint64_t gzif_trace_started_ms = monotonic_ms();"),
+            patched.index("  prime_block_io();"),
+        )
+        self.assertIn("stage=gzif-tracefs-live-capture-ms=", patched)
+        self.assertIn(
+            "gzif_trace_finished_ms - gzif_trace_started_ms",
+            patched,
+        )
+
     def test_changed_orchestrator_rejected(self):
         changed = self.orchestrator.replace(
             'int attempts = env_int_clamped("EXPLOIT_ATTEMPTS", 8, 1, 0x40);',
