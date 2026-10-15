@@ -161,7 +161,7 @@ static int daemon_main(void) {""",
     if (ready <= 0) continue;
     /* The callback must NOT accept new sessions after the fuse expires. */
     if (gzif_monotonic_ms() >= deadline_ms) break;
-    int conn = accept4(fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
+    int conn = accept4(fd, NULL, NULL, SOCK_CLOEXEC);
     if (conn < 0 && (errno == EINTR || errno == EAGAIN)) continue;
     if (conn < 0) continue;
 
@@ -191,9 +191,21 @@ static int daemon_main(void) {""",
         source, original_loop, new_loop,
         "bounded temporary-root socket lifetime",
     )
-    # The original daemon uses a blocking accept4; the GZIF overlay
-    # uses a bounded poll plus nonblocking accept so clock deadlines
-    # cannot be indefinitely delayed by lack of client requests.
+    # The listener remains blocking. Poll limits the wait for incoming
+    # requests. Do not mark the accepted connection SOCK_NONBLOCK: the
+    # original read_full/recvmsg protocol assumes blocking sockets.
+    source = replace_once(
+        source,
+        "  if (fd < 0) {\n    return 1;\n  }\n\n  struct sockaddr_un sun;",
+        "  if (fd < 0) {\n    (void)restore_selinux_enforcing();\n    return 1;\n  }\n\n  struct sockaddr_un sun;",
+        "immediate SELinux cleanup on socket creation failure",
+    )
+    source = replace_once(
+        source,
+        "    close(fd);\n    return 1;\n  }\n  chmod(BOOTSTRAP_SOCK_PATH, 0666);",
+        "    close(fd);\n    (void)restore_selinux_enforcing();\n    return 1;\n  }\n  chmod(BOOTSTRAP_SOCK_PATH, 0666);",
+        "immediate SELinux cleanup on bind/listen failure",
+    )
     return source
 
 
