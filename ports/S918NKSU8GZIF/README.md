@@ -494,6 +494,44 @@ Further blockers include Samsung module signing/loading policy,
 device-dependent BOPE reclaim/timing, trace ring framing access,
 KernelSU behavior, and clean-boot safety.
 
+### Owner-confirmed metadata-only KernelSU WIP audit — 2026-10-15
+
+Following a `git pull --ff-only`, the owner ran
+`python3 -m unittest tools.bope.tests.test_ksu_metadata_retarget -v`
+and `python3 tools/linux/check-gzif-ksu-retarget.py` in WSL2:
+
+- **3/3 unit tests passed**, including missing/duplicate vermagic rejection.
+- Original ZZI8 KernelSU module SHA-256: **MATCH**.
+- Only the equal-length release in `vermagic` was changed in an
+  **analysis-only local copy**.
+- GZIF target vermagic: **True**.
+- Missing undefined symbols: **0**; CRC mismatches: **0**;
+  target CRC entries missing: **0**; BTF layout mismatches: **0**;
+  `struct module` relocation mismatches: **0**.
+- Host-side `Static audit passed: True`.
+- Generated local artifact:
+  `~/rmg-firmware/gzif-contracts/s918ngzif-WIP/analysis-only/kernelsu-gzif-vermagic-WIP.ko`.
+- Generated report:
+  `~/rmg-firmware/gzif-contracts/s918ngzif-WIP/analysis-only/kernelsu-gzif-metadata-static-audit.json`.
+
+**Scope:** user-reported local host analysis, not uploaded binaries
+or independently reproduced execution. The original ZZI8 module is
+unchanged, and the WIP copy was **not** compiled for GZIF or installed,
+signed, loaded, or executed on Android. Metadata retargeting plus a
+positive ABI/CRC static report is **not** a proof of successful or safe
+KernelSU operation.
+
+**Open independent gates:** GZIF kernel module-loading configuration,
+signature enforcement, actual `struct module` build evidence (donor BTF
+was used in place of module DWARF), device runtime behavior, Samsung
+security policies, BOPE timing/reclaim calibration, and safe clean-boot
+validation. The app target must remain disabled. Before any attempt
+at on-device loading, perform non-root, read-only checks of
+`/proc/sys/kernel/modules_disabled` and
+`/sys/module/module/parameters/sig_enforce` on the matching phone.
+A missing/inaccessible file should be recorded as unavailable, never
+bypassed. The values alone do not authorize module loading.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
