@@ -196,13 +196,13 @@ static int daemon_main(void) {""",
     # permissive while waiting for a socket the client cannot use.
     source = replace_once(
         source,
-        "  chmod(BOOTSTRAP_SOCK_PATH, 0666);\\n\\n  for (;;) {".replace("\\n", "\n").replace("\\n", "\n"),
-        "  if (chmod(BOOTSTRAP_SOCK_PATH, 0666) != 0) {\\n"
-        "    close(fd);\\n"
-        "    unlink(BOOTSTRAP_SOCK_PATH);\\n"
-        "    (void)restore_selinux_enforcing();\\n"
-        "    return 135;\\n"
-        "  }\\n\\n  for (;;) {".replace("\\n", "\n").replace("\\n", "\n"),
+        "  chmod(BOOTSTRAP_SOCK_PATH, 0666);\n\n  for (;;) {",
+        "  if (chmod(BOOTSTRAP_SOCK_PATH, 0666) != 0) {\n"
+        "    close(fd);\n"
+        "    unlink(BOOTSTRAP_SOCK_PATH);\n"
+        "    (void)restore_selinux_enforcing();\n"
+        "    return 135;\n"
+        "  }\n\n  for (;;) {",
         "cleanup on temporary-root socket chmod failure",
     )
     # The listener remains blocking. Poll limits the wait for incoming
