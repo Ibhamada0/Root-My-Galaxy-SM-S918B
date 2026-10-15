@@ -555,6 +555,63 @@ Do not write sysctl or sysfs settings; do not alter SELinux,
 attempt `su`, perform `insmod`, or treat static checks as device
 load authorization. The analysis-only WIP module stays off-device.
 
+### Owner-read GZIF build configuration — 2026-10-15
+
+The owner successfully copied `/proc/config.gz` from the live SM-S918N
+with **non-root ADB pull** (42,167 compressed bytes) and decompressed it
+locally in Windows PowerShell. Selected Kconfig lines:
+
+```text
+CONFIG_IKCONFIG=y
+CONFIG_IKCONFIG_PROC=y
+CONFIG_MODULES_USE_ELF_RELA=y
+CONFIG_MODULE_SIG_FORMAT=y
+CONFIG_MODULES=y
+CONFIG_MODULE_UNLOAD=y
+CONFIG_MODVERSIONS=y
+CONFIG_MODULE_SIG=y
+# CONFIG_MODULE_SIG_FORCE is not set
+CONFIG_MODULE_SIG_PROTECT=y
+CONFIG_MODULE_SIG_ALL=y
+CONFIG_MODULE_SIG_SHA1=y
+CONFIG_MODULE_SIG_HASH="sha1"
+CONFIG_MODULE_COMPRESS_NONE=y
+CONFIG_MODULES_TREE_LOOKUP=y
+# CONFIG_SECURITY_LOCKDOWN_LSM is not set
+CONFIG_MODULE_SIG_KEY="certs/signing_key.pem"
+CONFIG_MODULE_SIG_KEY_TYPE_RSA=y
+```
+
+These are **compile-time** settings, not evidence that this device permits
+arbitrary third-party module loading. The original `modules_disabled`
+runtime sysctl was inaccessible (`Permission denied`).
+
+**Precise meaning of `CONFIG_MODULE_SIG_PROTECT`:** in the Android GKI
+kernel Kconfig it enables restrictions on modules' use of GKI-protected
+symbols and duplicate exports. It does **not** simply mean that every
+module must have a trusted signature. Android's corresponding
+`kernel/module/signing.c` conditionally omits the ordinary
+`sig_enforce` sysfs parameter when this option is enabled, so its
+absence is unsurprising and is **not** proof that signature or symbol
+checks are disabled. Source references:
+
+- https://android.googlesource.com/kernel/common/+/1694e2760e48d82ce4cc30a196d93fef6ae1f69d/kernel/module/Kconfig
+- https://android.googleid.googlesource.com/kernel/common-patches/+/ee89e4d2634a5e1b31ed97b8cb1c85d5c196ea78/android-mainline/ANDROID-GKI-Add-script-to-generate-symbol-protection-headers.patch
+
+Those are Android GKI source references, **not** proof of the exact Samsung
+GZIF implementation or its protected-symbol lists. This distinction
+matters despite the 139/139 CRC matches and clean eight-structure BTF
+comparison. `MODULE_SIG_ALL=y` sets default build-time module signing
+behavior, not permission to load a modified, unsigned module.
+`MODULE_SIG_FORCE` is unset, but GKI symbol protection and Samsung
+runtime policy still require separate validation.
+
+The analysis-only `kernelsu-gzif-vermagic-WIP.ko` must remain **off-device**.
+Next safe investigation is host-side module-signature metadata inspection
+(`modinfo -F signer/sig_id/sig_key/sig_hashalgo`) on the
+unchanged donor and local WIP copy. No `insmod`, module signing,
+privilege escalation or changes to kernel policy.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
