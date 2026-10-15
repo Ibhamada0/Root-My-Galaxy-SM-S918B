@@ -607,6 +607,54 @@ or SELinux restoration if BOPE fails before the root daemon starts.
 The exact donor-derived module is still not a GZIF source-built LKM,
 even though the owner reports the developer believes it compatible.
 
+## 2026-10-15: concrete FOPS/futex recovery gate (host source only)
+
+A conservative read-only audit was added as
+`tools/linux/audit_gzif_kernel_recovery.py`. It reports
+`NO_GO_KERNEL_RECOVERY_UNPROVEN` with exit code **2**, not a
+successful root-ready state. It checks exact donor source anchors
+and rejects unknown source changes instead of assuming recovery.
+
+The **four current blockers** are:
+
+- `FOPS_FALLBACK_LOG_ONLY`: `recover_ashmem_fops()` only logs
+  `fops-recovery-reboot-required`; it has no demonstrated alternate writer.
+- `PIPE_INSTALL_FAILURE_AFTER_MUTATION`: failure in `oss_pipe_rw_install()`
+  returns without a proven way to restore mutated FOPS.
+- `UMH_TIMEOUT_STATIC_PATH_PINNED`: a pending timed-out UMH trigger
+  causes cleanup to skip restoring the static usermode-helper path.
+- `SELINUX_SUCCESS_LIFETIME_GAP`: successful temporary-root socket
+  creation leaves restoring enforcing to later userspace work.
+
+An existing FOPS pipe readback guard and denial of unsafe retries
+are partial mitigations. Neither proves kernel recovery.
+
+Separately, the disposable GZIF-only helper overlay now **attempts**
+SELinux restoration when UMH argument validation, credential setup,
+daemon fork or setsid fails before starting the userspace watchdog.
+This is a narrow cleanup improvement; SIGKILL, kernel panic, unsafe
+FOPS state and module admission are still unresolved.
+
+New tests: `tools/bope/tests/test_gzif_kernel_recovery_audit.py`
+(3 cases) and two additional cases in
+`tools/bope/tests/test_gzif_root_helper_guard.py`.
+These changes have not been owner-run, rebuilt or deployed. The
+existing 29,592-byte WSL helper and older on-device helper are unchanged.
+
+Host-only validation (the audit's exit 2 is the expected NO-GO):
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+python3 -m unittest tools.bope.tests.test_gzif_root_helper_guard tools.bope.tests.test_gzif_kernel_recovery_audit -v
+python3 tools/linux/audit_gzif_kernel_recovery.py
+echo "Recovery audit exit code (expected 2): $?"
+```
+
+Once only the new tests pass, if a new helper artifact is wanted,
+`python3 tools/linux/build-gzif-fused-helper-only.py` recompiles
+**only** that changed helper off-device. Do not deploy it merely
+because the audit or NDK build completed.
 ## Hard limitations
 
 The GZIF one-shot branch compiles host-side but has not been
