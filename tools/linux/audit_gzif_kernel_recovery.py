@@ -78,7 +78,7 @@ def evaluate(orchestrator: str, umh: str) -> dict:
     timeout = between(
         umh,
         "  if (trigger_completed == 0) {",
-        "  path_restored =", "umh_timeout",
+        "  path_restored =\n      oss_pipe_rw_write(fd, static_path_alias, original_guard,", "umh_timeout",
     )
     require_unique(timeout, "    goto out;", "umh_timeout_goto")
     require_unique(
