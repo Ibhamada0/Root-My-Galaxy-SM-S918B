@@ -32,6 +32,40 @@ class ControlledGzifTrialOverlayTests(unittest.TestCase):
             result,
         )
 
+
+    def test_kaslr_only_bypasses_root_helper_and_mutation(self):
+        patched = patch_orchestrator(self.orchestrator)
+        diagnostic_start = patched.index(
+            '  if (getenv("GZIF_KASLR_ONLY")) {',
+            patched.index("static int do_one_attempt("),
+        )
+        preflight_start = patched.index("  if (!root_umh_preflight(root_umh_path))")
+        mutation_start = patched.index("  uint64_t payload_base = groom_and_install_fops_object(")
+        self.assertLess(diagnostic_start, preflight_start)
+        self.assertLess(diagnostic_start, mutation_start)
+        diag = patched[diagnostic_start:preflight_start]
+        self.assertIn("kaslr_locate_via_tracefs(&base)", diag)
+        self.assertIn("return 1;", diag)
+        self.assertNotIn("root_umh_preflight(", diag)
+        self.assertIn(
+            'if (success && getenv("GZIF_KASLR_ONLY")) {',
+            patched,
+        )
+        self.assertIn("root not attempted", patched)
+
+    def test_kernel_mutation_requires_separate_ack(self):
+        patched = patch_orchestrator(self.orchestrator)
+        self.assertIn("GZIF_KERNEL_MUTATION_ACK", patched)
+        self.assertIn("I_ACCEPT_GZIF_KERNEL_MUTATION_S918NKSU8GZIF", patched)
+        self.assertIn(
+            "refusing kernel mutation without separate authorization",
+            patched,
+        )
+        self.assertLess(
+            patched.index("GZIF_KERNEL_MUTATION_ACK"),
+            patched.index('  int boot_quiet_sec = env_int_clamped('),
+        )
+
     def test_donor_original_is_never_changed(self):
         patched = patch_orchestrator(self.orchestrator)
         self.assertNotEqual(patched, self.orchestrator)
