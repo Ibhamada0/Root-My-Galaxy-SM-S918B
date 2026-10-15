@@ -65,6 +65,7 @@ Use the full upstream source checkout and prerequisite tools described in
   --donor targets/zzhl \
   --engine-donor targets/zzi8-WIP \
   --target-slug s918ngzif \
+  --expected-kernel-release 5.15.197-android13-8-34343818-abS918NKSU8GZIF \
   --skip-kernelsu --skip-build
 ```
 
