@@ -225,11 +225,12 @@ previously reported category prefixes. Each was classified, not approved:
 | Runtime-specific values | 16 | `TARGET_TRACE_SCHED_BLOCKED_REASON_ID`, `TARGET_KERNEL_IMAGE_SPAN`, `TARGET_KMALLOC_4K_CACHE_NAME`, reclaimed-object live offsets; may be firmware/boot/calibration dependent |
 | Bootstrap path, guard and timeouts | 7 | `TARGET_STATIC_UMH_*`, `TARGET_BINFMT_TRIGGER_PATH`, `TARGET_UMH_*`; structural string sizes are checkable offline but bootstrap behavior is **not** |
 
-The added offline audit `tools/linux/audit-gzif-inherited.py` checks six
+The added offline audit `tools/linux/audit-gzif-inherited.py` checks five
 narrow invariants against the owner's **GZIF BTF** or source-provided static
-guard: `struct file` size, three `rb_node` offsets, UMH guard size and UMH
-path/patch-buffer fit. A report of six passes still **does not certify any
-inherited parameter for live use**.
+guard: three `rb_node` offsets, UMH guard size and UMH path/patch-buffer
+fit. It separately **reports but does not validate** the difference between
+`sizeof(struct file)` and the inherited SLAB allocation size.
+Five passes still **do not certify any inherited parameter for live use**.
 
 ```bash
 cd ~/Root-My-Galaxy-GZIF
