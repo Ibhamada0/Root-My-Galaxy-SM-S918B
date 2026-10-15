@@ -1126,6 +1126,60 @@ PASS; no live BOPE kernel mutation, temporary-root result or KernelSU
 module admission has been observed.** A future temporary root socket
 must not be reported as a completed KernelSU root installation.
 
+### Owner-confirmed first live BOPE KASLR-only resolution — 2026-10-15
+
+The owner ran **the guarded BOPE `GZIF_KASLR_ONLY` payload** on
+the actual SM-S918N/GZIF device and reported:
+
+```text
+TraceFS before: 0/0
+[BOPE] Brazilian Open Payload Engine initialized
+[BOPE] [*] starting exploit attempts=1
+[BOPE] [*] exploit attempt=1/1
+[kaslr] source=tracefs base=(redacted) slide=(redacted) p0_offset=(redacted) votes=2 sample_ms=0
+[BOPE] [+] exploit completed attempt=1/1
+TraceFS after: 0/0
+KASLR exit code: 0
+```
+
+**Outcome:** the actual KASLR resolver ran and returned a candidate
+kernel base meeting its configured two-vote quorum. Global TraceFS
+controls were observed as `0/0` before and after the process.
+No root stage, futex kernel mutation, arbitrary kernel R/W, KernelSU
+module load or SELinux transition has been demonstrated.
+
+**Qualification:** `sample_ms=0` indicates that the reported success
+was immediate or elapsed-time rounded to zero. Because global
+`trace_pipe_raw` rings were **not cleared** (to preserve existing
+tracing data), the source records could have been buffered earlier.
+Also, the resolver's loose record scan does not provide an
+independent, fresh kernel-base confirmation. Its candidate is
+**not yet proven correct for memory mutation**. No absolute kernel
+addresses are recorded in this public report.
+
+**Observed logging mismatch:** BOPE's default compact logger passes
+`[kaslr] source=` and generic `exploit completed` but silently
+filters `[gzif-diagnostic]` because it is not on the allowlist.
+This made the *KASLR-only* success appear as an actual exploit success
+even though the dedicated mode returns before kernel mutation.
+
+**Fix:** the one-shot GZIF-only source overlay now emits
+`stage=gzif-kaslr-...` so compact logging will show the
+`root-not-attempted` qualifier, and changes the parent supervisor
+log label for this mode from `exploit completed` to
+`stage=gzif-kaslr-child-completed root-not-attempted`.
+A ninth host regression test covers these statements. The original
+ZZI8 donor source is unchanged. This is a **new host source revision**;
+the previously run `s918ngzif-abe9924m` artifact is
+not patched retroactively.
+
+**No-GO for BOPE kernel memory mutation/root:** validating that an
+algorithm produced a two-vote candidate does not independently prove
+the candidate was derived from fresh current-boot trace records.
+GZIF allocator/reclaim timing and unsigned KernelSU Next module
+admission still lack live validation. Odin/backup readiness cannot
+make those kernel writes reliable.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
