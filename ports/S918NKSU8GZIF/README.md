@@ -100,6 +100,26 @@ firmware, with separate logs. If recovery fails, inspect the logs and do not
 copy donor symbol offsets as a substitute. Generated firmware binaries and
 symbols are not uploaded to the repository or flashed to the phone.
 
+## WSL2 GZIF symbol recovery — user-confirmed 2026-10-15
+
+After resolving a Python 3.14 `Python.h` development-header dependency issue,
+the owner ran `bash tools/linux/recover-gzif-symbols.sh` successfully:
+
+- Boot SHA-256 and extracted GZIF kernel release matched the recorded values.
+- `kallsyms_GZIF.kallsyms`: **126452** lines, approximately **5.4 MiB**.
+- `vmlinux_GZIF.elf`: approximately **51 MiB**, passing the script's
+  AArch64 ELF-machine check.
+- Both outputs remain **offline in the owner's WSL2 firmware directory**.
+  The files themselves, hashes, and full extraction logs have not been
+  independently inspected or committed to GitHub.
+
+**Recovery success is not proof that every recovered symbol address is valid.**
+The next gate is to compare the target ELF's symbol addresses to kallsyms and
+verify an independently regenerated firmware contract against ELF and BTF.
+Use `--skip-build --skip-kernelsu` and a separate output root for the first
+contract derivation; no app integration or device modification should occur.
+See `tools/bope/README.md` for the standalone factory CLI entry point.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
