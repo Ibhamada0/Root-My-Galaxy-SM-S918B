@@ -214,6 +214,35 @@ must be reviewed independently. This audit is a classification of
 unverified settings, not authorization to run a privilege-escalation
 payload or proof of platform stability.
 
+### The 33 other inherited macros — owner-reported, triaged
+
+The owner enumerated all 33 inherited `TARGET_*` values outside the
+previously reported category prefixes. Each was classified, not approved:
+
+| Triage class | Count | Examples and evidence still needed |
+| --- | ---: | --- |
+| ABI geometry / fixed-looking constants | 10 | `TARGET_FILE_CACHE_SIZE`, `TARGET_RB_*_OFF`, `TARGET_PAGE_SIZE`, `TARGET_TTY_MAGIC`; cross-check independent target BTF and device kernel configuration |
+| Runtime-specific values | 16 | `TARGET_TRACE_SCHED_BLOCKED_REASON_ID`, `TARGET_KERNEL_IMAGE_SPAN`, `TARGET_KMALLOC_4K_CACHE_NAME`, reclaimed-object live offsets; may be firmware/boot/calibration dependent |
+| Bootstrap path, guard and timeouts | 7 | `TARGET_STATIC_UMH_*`, `TARGET_BINFMT_TRIGGER_PATH`, `TARGET_UMH_*`; structural string sizes are checkable offline but bootstrap behavior is **not** |
+
+The added offline audit `tools/linux/audit-gzif-inherited.py` checks six
+narrow invariants against the owner's **GZIF BTF** or source-provided static
+guard: `struct file` size, three `rb_node` offsets, UMH guard size and UMH
+path/patch-buffer fit. A report of six passes still **does not certify any
+inherited parameter for live use**.
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+source .venv/bin/activate
+python3 tools/linux/audit-gzif-inherited.py
+```
+
+A local `inherited-offline-audit.json` is written beside the generated
+manifest. Do not commit the owner's kernel binaries or generated exploit
+artifacts. The script never contacts the device and never changes the
+application support manifest.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
