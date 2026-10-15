@@ -169,13 +169,20 @@ def main() -> int:
         logdir = workspace / "logs"
         logdir.mkdir()
         overlay_report = None
+        helper_guard_report = None
         if args.controlled_one_shot:
             from gzif_controlled_trial_overlay import apply_overlay
+            from gzif_root_helper_guard import apply_helper_overlay
             overlay_report = apply_overlay(staged_engine)
+            helper_guard_report = apply_helper_overlay(staged_helper)
             (workspace / "one-shot-overlay.json").write_text(
                 json.dumps(overlay_report, indent=2, sort_keys=True) + "\n"
             )
+            (workspace / "root-helper-fuse.json").write_text(
+                json.dumps(helper_guard_report, indent=2, sort_keys=True) + "\n"
+            )
             print("[ONE-SHOT] Prepared GZIF-only guarded source copy")
+            print("[ONE-SHOT] Added 180-second temporary-root SELinux fallback fuse")
         env = os.environ.copy()
         env["ANDROID_NDK_HOME"] = str(ndk)
         run_build(
@@ -211,6 +218,7 @@ def main() -> int:
                 if args.controlled_one_shot else STATUS
             ),
             "one_shot_overlay": overlay_report,
+            "root_helper_fuse_overlay": helper_guard_report,
             "firmware": EXPECTED["TARGET_BUILD"],
             "kernel_release": EXPECTED["TARGET_KERNEL_RELEASE"],
             "ndk": str(ndk),
