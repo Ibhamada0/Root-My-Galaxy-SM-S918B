@@ -635,7 +635,7 @@ an independent GKI protected-symbol concern. The runtime
 
 For a second *strictly host-side*, non-modifying signature-format check,
 compare the final bytes of each .ko with the standard Linux module
-signature trailer `~Module signature appended~\\n`. Do not infer
+signature trailer `~Module signature appended~\n`. Do not infer
 device loadability from this check. The GZIF WIP file must remain in
 the `analysis-only` directory and **must not be insmod'ed, signed,
 deployed, flashed, or presented as a working KernelSU port**.
