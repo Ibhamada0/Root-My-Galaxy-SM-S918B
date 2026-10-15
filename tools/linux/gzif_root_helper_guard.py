@@ -220,6 +220,33 @@ static int daemon_main(void) {""",
         "  }\n\n  for (;;) {",
         "cleanup on temporary-root socket chmod failure",
     )
+    # Close four deterministic pre-watchdog UMH failure windows.
+    # These are only best-effort writes by a running root process;
+    # SIGKILL/panic and failures of the SELinux interface still remain.
+    source = replace_once(
+        source,
+        "      !parse_binfmt_uid(argv[3], &client_uid)) {\n    return 124;\n  }\n  allowed_client_uid = client_uid;",
+        "      !parse_binfmt_uid(argv[3], &client_uid)) {\n    if (geteuid() == 0) (void)restore_selinux_enforcing();\n    return 124;\n  }\n  allowed_client_uid = client_uid;",
+        "best-effort enforcing restoration on invalid UMH invocation",
+    )
+    source = replace_once(
+        source,
+        "      getuid() != 0 || geteuid() != 0 || getgid() != 0 || getegid() != 0) {\n    return 125;\n  }\n  pid_t daemon = fork();",
+        "      getuid() != 0 || geteuid() != 0 || getgid() != 0 || getegid() != 0) {\n    (void)restore_selinux_enforcing();\n    return 125;\n  }\n  pid_t daemon = fork();",
+        "best-effort enforcing restoration on UMH credential failure",
+    )
+    source = replace_once(
+        source,
+        "  if (daemon < 0) {\n    return 126;\n  }\n  if (daemon > 0)",
+        "  if (daemon < 0) {\n    (void)restore_selinux_enforcing();\n    return 126;\n  }\n  if (daemon > 0)",
+        "best-effort enforcing restoration on root daemon fork failure",
+    )
+    source = replace_once(
+        source,
+        "  if (setsid() < 0) {\n    _exit(127);\n  }\n  prctl(PR_SET_NAME, \"cve43499-root\"",
+        "  if (setsid() < 0) {\n    (void)restore_selinux_enforcing();\n    _exit(127);\n  }\n  prctl(PR_SET_NAME, \"cve43499-root\"",
+        "best-effort enforcing restoration on root daemon setsid failure",
+    )
     return source
 
 
@@ -234,6 +261,7 @@ def apply_helper_overlay(helper_directory: Path) -> dict[str, object]:
         "donor_source_modified": False,
         "independent_watcher": "best-effort, not a kernel-level guarantee",
         "temporary_root_socket": "bounded to fuse deadline",
+        "pre_watchdog_failure_cleanup": "four UMH early-return paths attempt enforcing restoration",
         "failure_risks": [
             "Kernel panic/power loss cannot be recovered by userspace",
             "Signal termination of watchdog and daemon cannot be prevented",
