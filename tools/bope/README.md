@@ -71,11 +71,13 @@ the **complete** release identity:
 ./tools/bope-from-factory ./boot.img.lz4 \
   --fingerprint 'samsung/dm3qksx/dm3q:17/CP2A.260605.016/S918NKSU8GZIF:user/release-keys' \
   --expected-kernel-release '5.15.197-android13-8-34343818-abS918NKSU8GZIF' \
-  --donor targets/zzhl \
+  --donor targets/zzi8-WIP \
   --engine-donor targets/zzi8-WIP \
   --target-slug s918ngzif \
   --skip-kernelsu --skip-build
 ```
+
+For the GZIF example above, use `zzi8-WIP` as the donor: the older `zzhl` contract does not define `TARGET_KERNEL_VERSION`, which the current firmware contract generator requires. The target kernel's ELF/BTF evidence is still used to recalculate the symbols and layouts.
 
 This route does **not** verify full Odin package provenance or signatures.
 The submitted fingerprint and expected kernel release must be independently
