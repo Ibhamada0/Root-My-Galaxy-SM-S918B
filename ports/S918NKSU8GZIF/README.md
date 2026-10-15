@@ -755,6 +755,42 @@ identifiers, firmware blobs or device logs were uploaded.
 Whether the temporary diagnostic was removed after execution
 has not been independently confirmed.
 
+### Owner-reported live TraceFS access preflight — 2026-10-15
+
+From Windows PowerShell over non-root ADB, the owner used shell
+`-e`, `-r` and `-w` tests for the three tracefs paths needed
+by the ZZI8 BOPE KASLR resolver:
+
+| TraceFS path | Readable | Writable |
+| --- | --- | --- |
+| `/sys/kernel/tracing/tracing_on` | yes | yes |
+| `/sys/kernel/tracing/events/sched/sched_blocked_reason/enable` | yes | yes |
+| `/sys/kernel/tracing/per_cpu/cpu0/trace_pipe_raw` | yes | no |
+
+This is **user-reported path-access preflight**, **not** successful
+`open(2)`, tracing, record capture or KASLR. Read-only access to
+`trace_pipe_raw` is the expected mode for BOPE's reader.
+Other CPU reader paths remain unchecked. Shell tests may not
+fully account for SELinux decisions at actual file-operation time.
+
+**Important source-side hazard uncovered before runtime trials:** the
+donor's `kaslr_locate_via_tracefs` (in `src/01_kernel_base_tracefs.c`)
+writes `tracing_on=0`, truncates `trace`, enables the tracepoint,
+writes `tracing_on=1`, and then ends by forcing `tracing_on=0`
+and the event `enable=0` **without preserving/restoring original
+values**. Thus `SLIDE_ONLY` is NOT a read-only or side-effect-free
+on-device diagnostic; it can disrupt tracing state and destroy
+existing trace data even without invoking the later futex kernel
+mutation. Additionally, `PIPE_PREFLIGHT_ONLY` happens after
+grooming and should not be treated as a harmless smoke test.
+
+Before any controlled trace runtime experiment, use **read-only**
+ADB to record `tracing_on` and `sched_blocked_reason/enable`
+values, and establish a separate opt-in KASLR-only diagnostic with
+an explicit snapshot/restore protocol, bounded runtime, and
+safe-abort behavior. Do not run the WIP root payload, the
+`SLIDE_ONLY` main orchestrator, or KernelSU on the phone yet.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
