@@ -53,6 +53,29 @@ class ControlledGzifTrialOverlayTests(unittest.TestCase):
         )
         self.assertIn("root not attempted", patched)
 
+
+    def test_kaslr_only_reports_diagnostic_not_exploit_success(self):
+        patched = patch_orchestrator(self.orchestrator)
+        self.assertIn(
+            "stage=gzif-kaslr-child-completed root-not-attempted",
+            patched,
+        )
+        self.assertIn(
+            "stage=gzif-kaslr-resolved root-not-attempted",
+            patched,
+        )
+        self.assertIn(
+            "stage=gzif-kaslr-only-success root-not-attempted",
+            patched,
+        )
+        self.assertIn(
+            '      if (getenv("GZIF_KASLR_ONLY")) {',
+            patched,
+        )
+        # In root path, donor's original "exploit completed" log is
+        # preserved after the diagnostic-mode conditional.
+        self.assertEqual(patched.count("exploit completed attempt=%d/%d"), 1)
+
     def test_kernel_mutation_requires_separate_ack(self):
         patched = patch_orchestrator(self.orchestrator)
         self.assertIn("GZIF_KERNEL_MUTATION_ACK", patched)
