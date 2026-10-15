@@ -935,6 +935,40 @@ the prepared Odin/official-firmware recovery path; and separately
 resolve KernelSU module admission policy. Root helper success and
 KernelSU persistent root must not be conflated.
 
+### Owner-confirmed controlled one-shot host build — 2026-10-15
+
+The owner executed `python3 tools/linux/build-gzif-android-wip.py
+--controlled-one-shot` after obtaining the source overlay. The local
+**isolated host-side NDK build** succeeded:
+
+```text
+[ONE-SHOT] Prepared GZIF-only guarded source copy
+[BUILT] payload_so: ELF64/AArch64 (165864 bytes)
+[BUILT] mm_exec_factory: ELF64/AArch64 (1816 bytes)
+[BUILT] stability_launcher: ELF64/AArch64 (18736 bytes)
+[BUILT] root_helper: ELF64/AArch64 (28240 bytes)
+Status: HOST_BUILD_ONE_SHOT_EXPERIMENTAL_NOT_DEVICE_VALIDATED
+DO NOT DEPLOY these WIP binaries to Android.
+One-shot overlay is NOT a safety certification.
+```
+
+Local report, **not uploaded**:
+`~/rmg-firmware/gzif-android-builds/s918ngzif-dbc32o5g/build-report.json`.
+Source owner output shows compiler and three existing host regressions
+succeeded under the build script. Results of the **six distinct
+`test_gzif_controlled_trial_overlay` cases have not yet been
+provided**; do not infer they passed.
+
+**No root attempt or KernelSU module load occurred**. The new
+`payload.so` is not safe to deploy merely because it compiled.
+Source-review blockers include read/consumption of global
+`trace_pipe_raw` rings, non-atomic TraceFS state changes,
+absence of robust signal/crash restoration, donor-inherited
+kernel allocator/timing calibration and an unverified unsigned
+KernelSU module admission path. Do not copy or run the payload
+until the actual on-device trial has an independently reviewed
+recovery and rollback plan.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
