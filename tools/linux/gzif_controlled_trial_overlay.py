@@ -31,6 +31,15 @@ def patch_orchestrator(text: str) -> str:
         '      getenv("P0_PROBE_PAGE_STRUCT")) {\n'
         '    fprintf(stderr, "[gzif-trial] refusing forced/cached KASLR inputs\\n");\n'
         '    return 1;\n'
+        '  }\n'
+        '  if (!getenv("GZIF_KASLR_ONLY")) {\n'
+        '    const char *mutation_ack = getenv("GZIF_KERNEL_MUTATION_ACK");\n'
+        '    if (!mutation_ack || strcmp(mutation_ack, '
+        '"I_ACCEPT_GZIF_KERNEL_MUTATION_S918NKSU8GZIF") != 0) {\n'
+        '      fprintf(stderr, "[gzif-trial] refusing kernel mutation without '
+        'separate authorization\\n");\n'
+        '      return 1;\n'
+        '    }\n'
         '  }\n\n'
     )
     text = once(text, guard_at, guard + guard_at, "explicit trial opt-in")
