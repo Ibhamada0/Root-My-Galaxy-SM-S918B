@@ -715,6 +715,46 @@ python3 tools/linux/build-gzif-android-wip.py
 This is only a local WIP Android build. A successful build is still
 **not** exploit validation or permission to run, load or flash it.
 
+### Owner-confirmed on-device native smoke — 2026-10-15
+
+The owner compiled the **separate read-only diagnostic**
+`tools/android/gzif-device-smoke.c` using the Android NDK,
+then ran `/data/local/tmp/gzif-device-smoke` from normal ADB shell
+on the actual SM-S918N running GZIF. Its reported output was:
+
+```text
+GZIF_NATIVE_SMOKE_V1
+Mode: read-only native Android process; no exploit invoked
+Architecture: MATCH
+Kernel release: MATCH
+Kernel version: MATCH
+ro.product.model: MATCH
+ro.product.device: MATCH
+ro.build.version.incremental: MATCH
+ro.build.fingerprint: MATCH
+SELinux: Enforcing
+Execution UID: 2000
+GZIF_NATIVE_SMOKE_RESULT: PASS
+```
+
+This is the **first user-reported successful execution of a
+new GZIF-specific native binary on the physical device**. Exact kernel
+release and version, model, device, incremental build and
+fingerprint matched, with SELinux still enforcing and the process
+running as the ordinary ADB shell UID 2000.
+
+**Scope limitation:** this diagnostic does *not* contain or invoke BOPE,
+tracefs writing, kernel heap reclaim, kernel R/W, KernelSU,
+module loading or rooting. It is not an exploit success,
+device-wide stability check or root authorization.
+The separately built `payload.so`, helper, launcher and
+metadata-retargeted unsigned KernelSU .ko remain **WIP/off-device**.
+
+The owner's console output was reviewed; no private device
+identifiers, firmware blobs or device logs were uploaded.
+Whether the temporary diagnostic was removed after execution
+has not been independently confirmed.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
