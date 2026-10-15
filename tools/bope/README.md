@@ -58,6 +58,44 @@ Verify any generated contract again with:
   --btf targets/example-WIP/firmware/vmlinux_EXAMPLE.btf
 ```
 
+## Extracted standalone Samsung boot.img.lz4 (WIP input)
+
+If you have only `boot.img.lz4` from a known AP package, the same
+`bope-from-factory` command now accepts the extracted LZ4 file directly.
+This input mode validates the supplied Samsung release-keys fingerprint, the
+LZ4 and Android boot magic, and verifies that the unpacked kernel release ends
+with the exact firmware build. Supply `--expected-kernel-release` to enforce
+the **complete** release identity:
+
+```sh
+./tools/bope-from-factory ./boot.img.lz4 \
+  --fingerprint 'samsung/dm3qksx/dm3q:17/CP2A.260605.016/S918NKSU8GZIF:user/release-keys' \
+  --expected-kernel-release '5.15.197-android13-8-34343818-abS918NKSU8GZIF' \
+  --donor targets/zzhl \
+  --engine-donor targets/zzi8-WIP \
+  --target-slug s918ngzif \
+  --skip-kernelsu --skip-build
+```
+
+This route does **not** verify full Odin package provenance or signatures.
+The submitted fingerprint and expected kernel release must be independently
+verified from a trusted device/firmware source. The usual downstream symbol,
+ELF/BTF, KernelSU and device-testing gates **still apply**. With skip flags
+it produces only a candidate firmware contract, not a working root binary;
+never advertise it as a supported app target.
+
+If you already have a raw BTF blob, you can separately audit the kernel's
+struct field offsets, sizes and enums, and compare them with the donor:
+
+```sh
+python3 tools/bope-btf-audit /path/to/vmlinux-GZIF.btf \
+  --donor-header targets/zzi8-WIP/brazilian-open-payload-engine/src/target.h \
+  --output /tmp/gzif-abi.json
+```
+
+BTF comparison does not establish static kernel symbol addresses. See the
+read-only [GZIF ABI report](../../ports/S918NKSU8GZIF/btf-abi-report.json).
+
 ## Full Odin factory packages
 
 Use `bope-from-factory` when the input is a Samsung factory ZIP containing a
