@@ -404,6 +404,45 @@ the KASLR resolver to bypass this limitation.
 The device has not been rooted or modified during these
 read-only metadata checks.
 
+## Offline KernelSU donor inspection — owner-confirmed 2026-10-15
+
+The owner inspected the **unmodified** ZZI8 KernelSU Next v3.4.0 module
+`targets/zzi8-WIP/kernelsu-next/out/kernelsu-next-zzi8-v3.4.0/android13-5.15_kernelsu.ko`
+on Ubuntu WSL2. Reported ELF details:
+
+- Architecture: **ELF64 / AArch64**.
+- Module name: `kernelsu`; `depends=` empty.
+- Donor `vermagic`:
+  `5.15.197-android13-8-34343818-abS918BXXUAZZI8 SMP preempt mod_unload modversions aarch64`.
+- Exact GZIF required kernel release:
+  `5.15.197-android13-8-34343818-abS918NKSU8GZIF`.
+
+**Vermagic does not match GZIF.** The module must never be loaded onto the
+GZIF phone in its current form, and modifying vermagic does not itself
+establish kernel ABI compatibility or license a device load.
+
+A new read-only static auditor invokes the existing module compatibility
+checks against the locally generated GZIF symbolized ELF, kallsyms and
+BTF, comparing exported CRCs, undefined symbols, eight BTF structure
+layouts, and `struct module` relocation offsets. It inspects the
+**unchanged donor module**: it intentionally does not retarget its
+vermagic, build a new binary or touch Android.
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+source .venv/bin/activate
+sudo apt install -y kmod
+python3 tools/linux/audit-gzif-kernelsu-static.py
+```
+
+The output is stored only under the owner's local WIP target at
+`~/rmg-firmware/gzif-contracts/s918ngzif-WIP/kernelsu-donor-static-audit.json`.
+The overall compatibility result is expected to be `false` for this
+**original donor** because its vermagic is unchanged. The other comparison
+results are useful diagnostics; they are not a build or device-root gate.
+Any mismatch or incomplete audit remains a blocker.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
