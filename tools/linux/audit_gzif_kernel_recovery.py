@@ -71,7 +71,7 @@ def evaluate(orchestrator: str, umh: str) -> dict:
         "umh_after_fops_restore",
     )
     require_unique(
-        orchestrator, '    oss_diag_checkpoint("fops-restore-confirmed"',
+        orchestrator, '  oss_diag_checkpoint(confirmed ? "fops-restore-confirmed"',
         "fops_restore_confirmation",
     )
 
@@ -142,7 +142,7 @@ def evaluate(orchestrator: str, umh: str) -> dict:
         ),
         finding(
             "FOPS_PIPE_READBACK", "00_orchestrator.c",
-            '    oss_diag_checkpoint("fops-restore-confirmed"',
+            '  oss_diag_checkpoint(confirmed ? "fops-restore-confirmed"',
             "Normal pipe path performs readback confirmation; it cannot cover pipe failure.",
             "PARTIAL_GUARD",
         ),
