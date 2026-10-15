@@ -969,6 +969,33 @@ KernelSU module admission path. Do not copy or run the payload
 until the actual on-device trial has an independently reviewed
 recovery and rollback plan.
 
+### Owner-reported recovery resources before root trial — 2026-10-15
+
+The owner answered that **all recovery resources are ready** after being
+asked specifically about a full matching SM-S918N firmware package,
+Windows Odin and backups. This is an **operator statement only**; no
+contents, firmware hashes, partition compatibility, working Download Mode
+entry, or actual data-restore test have been independently verified.
+Having recovery files is not proof that user data are recoverable
+after a kernel panic or partition damage.
+
+The isolated GZIF one-shot WIP NDK build has completed and remains
+off-device. **The six dedicated one-shot source-overlay regressions
+have not been provided in the conversation**, and the build alone
+does not prove the patched tracing error paths. The donor engine's
+launcher provides `--check-only`, which checks runtime stability,
+mm geometry and pipe capacity without loading BOPE; that is a
+preflight, not the root trial. A true root attempt would run the
+unvalidated futex/allocator sequence and could immediately
+crash/reboot the kernel. It must not be conflated with the
+previous harmless GZIF identity smoke.
+
+No payload deployment or rooting attempted at this checkpoint.
+A root-trial release gate requires review of the exact artifact,
+positive overlay regressions, isolated device preflight, checked
+rollback plan and explicit notice that temporary root is not
+the same as KernelSU persistence.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
