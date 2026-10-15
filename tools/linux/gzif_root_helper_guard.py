@@ -191,20 +191,6 @@ static int daemon_main(void) {""",
         source, original_loop, new_loop,
         "bounded temporary-root socket lifetime",
     )
-    # Fail closed if the temporary-root listener cannot become reachable.
-    # The original helper ignored chmod errors and could leave SELinux
-    # permissive while waiting for a socket the client cannot use.
-    source = replace_once(
-        source,
-        "  chmod(BOOTSTRAP_SOCK_PATH, 0666);\n\n  for (;;) {",
-        "  if (chmod(BOOTSTRAP_SOCK_PATH, 0666) != 0) {\n"
-        "    close(fd);\n"
-        "    unlink(BOOTSTRAP_SOCK_PATH);\n"
-        "    (void)restore_selinux_enforcing();\n"
-        "    return 135;\n"
-        "  }\n\n  for (;;) {",
-        "cleanup on temporary-root socket chmod failure",
-    )
     # The listener remains blocking. Poll limits the wait for incoming
     # requests. Do not mark the accepted connection SOCK_NONBLOCK: the
     # original read_full/recvmsg protocol assumes blocking sockets.
@@ -219,6 +205,20 @@ static int daemon_main(void) {""",
         "    close(fd);\n    return 1;\n  }\n  chmod(BOOTSTRAP_SOCK_PATH, 0666);",
         "    close(fd);\n    (void)restore_selinux_enforcing();\n    return 1;\n  }\n  chmod(BOOTSTRAP_SOCK_PATH, 0666);",
         "immediate SELinux cleanup on bind/listen failure",
+    )
+    # Fail closed if the temporary-root listener cannot become reachable.
+    # The original helper ignored chmod errors and could leave SELinux
+    # permissive while waiting for a socket the client cannot use.
+    source = replace_once(
+        source,
+        "  chmod(BOOTSTRAP_SOCK_PATH, 0666);\n\n  for (;;) {",
+        "  if (chmod(BOOTSTRAP_SOCK_PATH, 0666) != 0) {\n"
+        "    close(fd);\n"
+        "    unlink(BOOTSTRAP_SOCK_PATH);\n"
+        "    (void)restore_selinux_enforcing();\n"
+        "    return 135;\n"
+        "  }\n\n  for (;;) {",
+        "cleanup on temporary-root socket chmod failure",
     )
     return source
 
