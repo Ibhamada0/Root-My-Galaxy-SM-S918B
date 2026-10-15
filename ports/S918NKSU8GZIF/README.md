@@ -791,6 +791,53 @@ an explicit snapshot/restore protocol, bounded runtime, and
 safe-abort behavior. Do not run the WIP root payload, the
 `SLIDE_ONLY` main orchestrator, or KernelSU on the phone yet.
 
+### Read-only global tracing baseline before isolated test — 2026-10-15
+
+The owner read the exact global TraceFS state via ordinary ADB shell:
+
+```text
+/sys/kernel/tracing/tracing_on: 0
+/sys/kernel/tracing/events/sched/sched_blocked_reason/enable: 0
+```
+
+These are **user-reported read-only values**; they do not prove there
+are no existing historical entries in the global tracing ring.
+
+To avoid the donor resolver's destructive global `trace` truncation
+and reset behavior, a narrow two-second **isolated trace instance**
+smoke script was added at
+`tools/android/gzif-isolated-trace-smoke.sh`.
+It refuses a mismatched device identity; creates its own
+`/sys/kernel/tracing/instances/rmg_gzif_<pid>` instance or aborts;
+starts/stops only that instance's `sched_blocked_reason` event;
+returns only an event **count**, plus an O_RDONLY no-consumption
+open check for its CPU0 raw pipe. It never prints pointer values,
+parses or infers the KASLR slide, or invokes BOPE/KernelSU. It uses
+a shell EXIT trap to disable and remove its instance. If instance
+creation is denied, **stop**; never fall back to the global
+tracing controls.
+
+Run manually on a connected owner device from Ubuntu WSL2
+after `git pull --ff-only`:
+
+```bash
+ADB=/mnt/c/Android/platform-tools/adb.exe
+SCRIPT=$HOME/Root-My-Galaxy-GZIF/tools/android/gzif-isolated-trace-smoke.sh
+"$ADB" push "$(wslpath -w "$SCRIPT")" /data/local/tmp/gzif-isolated-trace-smoke.sh
+"$ADB" shell sh /data/local/tmp/gzif-isolated-trace-smoke.sh
+"$ADB" shell rm /data/local/tmp/gzif-isolated-trace-smoke.sh
+```
+
+**This diagnostic is not risk-free:** it briefly activates a kernel
+tracepoint within an isolated instance, and cleanup is best-effort
+(e.g., sudden process termination or kernel reboot can interrupt
+it). It does not clear or write the global `trace` file, does not
+test exploit behavior, and cannot establish root support. Do not
+run it on a device performing critical work or when tracing is
+being used for another diagnosis. Monitor `Instance cleanup: OK`;
+if cleanup fails, preserve the error for inspection and do not
+rerun automatically.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
