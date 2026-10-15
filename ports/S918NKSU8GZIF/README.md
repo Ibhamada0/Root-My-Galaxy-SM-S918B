@@ -1070,6 +1070,56 @@ After this source modification the previous four-artifact build is
 **stale** and must not be used for new diagnostic mode; host overlay
 regressions and NDK rebuild must be repeated.
 
+### Owner-reported latest GZIF one-shot build and root go/no-go — 2026-10-15
+
+After the explicit pre-root KASLR-only branch and separate
+kernel-mutation acknowledgement were added, the owner reported:
+
+```text
+Ran 8 tests in 0.004s
+OK
+[ONE-SHOT] Prepared GZIF-only guarded source copy
+[BUILT] payload_so: ELF64/AArch64 (166560 bytes)
+[BUILT] mm_exec_factory: ELF64/AArch64 (1816 bytes)
+[BUILT] stability_launcher: ELF64/AArch64 (18736 bytes)
+[BUILT] root_helper: ELF64/AArch64 (28240 bytes)
+Status: HOST_BUILD_ONE_SHOT_EXPERIMENTAL_NOT_DEVICE_VALIDATED
+```
+
+The new disposable host build was located at
+`~/rmg-firmware/gzif-android-builds/s918ngzif-abe9924m/`.
+This supersedes the older `s918ngzif-dbc32o5g` outputs.
+The user also previously reported the actual on-device
+`stability-launcher --check-only` PASS (mm geometry,
+480-pipe resource gate and environment measurements).
+
+**GO**: source tests passed; latest host build completed;
+the launcher preflight ran on-device successfully.
+
+**NO-GO for running the BOPE kernel-mutation/root stage:** there
+has been *no* GZIF on-device BOPE KASLR slide resolution or
+validation of the trace ring encoding, no device-validated
+allocator/reclaim/futex window, and no proven GZIF KernelSU module
+load admission under the Samsung GKI protected-symbol policy.
+The WIP source overlay still toggles **global** tracing and reads
+consumptive raw trace ring data; restoring global state after
+kernel crash/SIGKILL is not guaranteed. One-shot limits
+repetition, but cannot prevent a first-attempt kernel panic,
+stale pointer dereference, data loss or bootloop.
+
+The owner has stated backup, official firmware and Windows Odin
+are ready, but no full restore was demonstrated. Running the
+latest staged payload or treating temporary UMH access as a
+working KernelSU root install is not justified by the observed
+results. **No exploit was triggered, and root remains unverified.**
+
+A completely separate rooting route, if the owner discovers
+their bootloader already unlocked or unlockable, is Samsung AP
+firmware patching via Magisk and Odin, following the official
+Magisk installation documentation. That route is not part of
+BOPE and also entails Knox changes and data loss:
+https://topjohnwu.github.io/Magisk/install
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
