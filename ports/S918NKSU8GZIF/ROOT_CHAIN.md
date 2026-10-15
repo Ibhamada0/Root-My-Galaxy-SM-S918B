@@ -110,6 +110,60 @@ stability test. It does **not** build an exact GZIF module, and it
 does not copy, load or flash anything on the phone. A source tree
 for the exact GZIF kernel/DDK build environment is still required.
 
+## Donor-version KernelSU Next ksud integration (host WIP only)
+
+The original BOPE root helper expects the executable
+`/data/local/tmp/ksud-selected`, but the four BOPE native artifacts
+do **not** include this daemon. The actual **KernelSU Next v3.4.0**
+`late-load` implementation retrieves the embedded
+`android13-5.15_kernelsu.ko` RustEmbed asset, tries to load
+it through `ksuinit::load_module`, then initializes KernelSU and
+its Manager. This is a **separate step** after temporary root.
+
+The pinned upstream `ksuinit::load_module` uses the kernel's
+`init_module` syscall; it resolves undefined symbols from
+`/proc/kallsyms` and has a fallback to rewrite `vermagic`
+if kernel logs reveal a mismatch. **Neither fallback bypasses
+Samsung's kernel module loading policy or guarantees ABI safety.**
+Thus matching KMI and host-side CRC/BTF checks are useful evidence
+but not proof of loadability.
+
+### Build the missing ksud executable now, without kernel sources
+
+The repository includes:
+[`tools/linux/build-gzif-ksud-loader-wip.py`](../../tools/linux/build-gzif-ksud-loader-wip.py).
+
+It requires the owner-prepared pinned `KernelSU-Next-v3.4.0`
+checkout, the **existing audited metadata-only GZIF module candidate**
+from `check-gzif-ksu-retarget.py` and its PASS report, Rust
+`cargo/rustc`, and the previously installed Android NDK 28.
+No Samsung Kbuild source is required for **this ksud build**.
+The script stages an isolated source copy and embeds exactly
+the previously audited donor-derived module; it rejects any
+unrelated change to the donor binary, module, commit or helper KMI.
+It then invokes Cargo to build the **real Android aarch64 ksud**,
+saving the output as `ksud-selected.WIP` with SHA and provenance.
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+python3 tools/linux/build-gzif-ksud-loader-wip.py
+```
+
+This is **an integration build**, not another identity/stability
+test. If `cargo`, its `aarch64-linux-android` Rust target,
+bindgen/libclang, or the host-only audited module artifact is
+missing, the build reports a concrete missing input; repair
+that dependency rather than repeating successful KASLR tests.
+
+**Do not push, execute or load `ksud-selected.WIP` or the donor
+`.ko` on a device**. The embedded module is still the ZZI8
+developer's binary with only a GZIF metadata-field replacement;
+it is not built from Samsung GZIF kernel sources.
+The module load syscall may be rejected, or a binary mismatch
+may crash the device. This host integration only eliminates the
+missing-ksud-build gap, not the runtime kernel-mutation gap.
+
 ## Exact-kernel module build gate
 
 A source-only WSL builder was added:
