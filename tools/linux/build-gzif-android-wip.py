@@ -215,9 +215,26 @@ def main() -> int:
             "kernel_release": EXPECTED["TARGET_KERNEL_RELEASE"],
             "ndk": str(ndk),
             "artifacts": artifacts,
+            "root_chain": {
+                "bope_native_artifacts": "HOST_BUILT_ONLY",
+                "device_kaslr_slide": "NOT_VALIDATED",
+                "device_kernel_rw": "NOT_VALIDATED",
+                "temporary_root_socket": "NOT_VALIDATED",
+                "static_usermode_helper_kernel_patch": "NOT_VALIDATED",
+                "selinux_permissive_transition": "NOT_VALIDATED",
+                "selinux_enforcing_restoration": "NOT_VALIDATED",
+                "kernelsu_next_module": "NO_GZIF_REBUILT_AND_ADMITTED_MODULE",
+                "ksud_late_load": "NOT_VALIDATED",
+                "kernelsu_control_handshake": "NOT_VALIDATED",
+                "persistent_root": "NOT_VALIDATED",
+                "full_root_ready": False,
+            },
             "limitations": [
                 "Compilation and host regressions only: no Android device run",
                 "No BOPE exploit or KernelSU operation validated",
+                "BOPE success/temporary root does not prove KernelSU late-load",
+                "Full root changes kernel static UMH bytes and SELinux state",
+                "Restoring SELinux after KernelSU late-load is not proven",
                 "Donor-inherited calibration still unverified",
                 "No insmod, flashing, ADB, app integration, or install",
             ],
@@ -228,6 +245,7 @@ def main() -> int:
             print(f"[BUILT] {name}: ELF64/AArch64 ({item['size']} bytes)")
         print("Report:", report_path)
         print("Status: " + report["status"])
+        print("KernelSU full-root chain: NOT VALIDATED; no target module build")
         print("DO NOT DEPLOY these WIP binaries to Android.")
         if args.controlled_one_shot:
             print("One-shot overlay is NOT a safety certification.")
