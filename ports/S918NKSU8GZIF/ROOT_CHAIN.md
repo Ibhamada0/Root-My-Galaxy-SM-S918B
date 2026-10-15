@@ -568,6 +568,15 @@ GitHub change. New unit tests have been authored, not yet executed
 on the owner's WSL. All previously completed build, 12/12 regression,
 KASLR and hash-verification work is still valid and not repeated.
 
+**Owner's first new guard regression run:** `1/5` tests passed; the other
+`4/5` failed before build because the new `chmod` transformation removed
+the literal source anchor expected by the older bind/listen cleanup
+transformation. Commit `37957836` moved the chmod transformation **after**
+bind/listen cleanup in the GZIF overlay. Source-pattern verification
+confirmed both replacements retain distinct anchors in the original
+donor; the corrected Python regression and helper NDK rebuild still
+await owner's WSL run. No Android operation occurred during this failure.
+
 **NO-GO remains:** no proof of kernel state recovery after futex/FOPS
 mutation, UMH timeout, usermode helper crash, or kernel panic.
 Socket recovery does not ensure module acceptance, KernelSU handoff
