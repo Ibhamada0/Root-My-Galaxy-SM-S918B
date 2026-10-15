@@ -996,6 +996,36 @@ positive overlay regressions, isolated device preflight, checked
 rollback plan and explicit notice that temporary root is not
 the same as KernelSU persistence.
 
+### Owner-confirmed six one-shot overlay regressions — 2026-10-15
+
+The owner executed
+`python3 -m unittest tools.bope.tests.test_gzif_controlled_trial_overlay -v`
+on the WSL checkout and reported:
+
+```text
+----------------------------------------------------------------------
+Ran 6 tests in 0.013s
+
+OK
+```
+
+This clears the **source-overlay regression gate** in the owner's
+environment; the exact console output provided did not include
+the names of the six cases. It does not validate tracefs interaction,
+kernel memory manipulation or root on the physical device.
+
+The **next diagnostic gate**, not an exploit invocation, is the existing
+GZIF-built stability launcher in `--check-only` mode. Source review
+confirmed `--check-only` does not load `payload.so` or call `execve`,
+but does check the expected `mm_struct` layout, sample CPU/memory/
+thermal metrics for up to 300 seconds, and transiently create 480
+pipes, resizing each to 32 x 4-KiB capacity as a resource-capability
+probe (without writing the pipe buffers). It may fail by design
+under ordinary Samsung SELinux/capability/rlimit policy and must not
+be bypassed. This test is **not** risk-free and not proof of exploit
+readiness. Do not transfer or run the root helper or payload in this
+diagnostic stage.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
