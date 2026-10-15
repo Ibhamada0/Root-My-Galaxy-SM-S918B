@@ -135,6 +135,10 @@ def main() -> int:
             Path.home() / "rmg-firmware/gzif-contracts/s918ngzif-WIP"
         ),
     )
+    parser.add_argument(
+        "--controlled-one-shot", action="store_true",
+        help="generate isolated WIP source with GZIF one-shot safety overlay",
+    )
     args = parser.parse_args()
     workspace: Path | None = None
     try:
@@ -164,6 +168,14 @@ def main() -> int:
                         ignore=shutil.ignore_patterns("__pycache__"))
         logdir = workspace / "logs"
         logdir.mkdir()
+        overlay_report = None
+        if args.controlled_one_shot:
+            from gzif_controlled_trial_overlay import apply_overlay
+            overlay_report = apply_overlay(staged_engine)
+            (workspace / "one-shot-overlay.json").write_text(
+                json.dumps(overlay_report, indent=2, sort_keys=True) + "\n"
+            )
+            print("[ONE-SHOT] Prepared GZIF-only guarded source copy")
         env = os.environ.copy()
         env["ANDROID_NDK_HOME"] = str(ndk)
         run_build(
@@ -194,7 +206,11 @@ def main() -> int:
                 "architecture": "ELF64/AArch64",
             }
         report = {
-            "status": STATUS,
+            "status": (
+                "HOST_BUILD_ONE_SHOT_EXPERIMENTAL_NOT_DEVICE_VALIDATED"
+                if args.controlled_one_shot else STATUS
+            ),
+            "one_shot_overlay": overlay_report,
             "firmware": EXPECTED["TARGET_BUILD"],
             "kernel_release": EXPECTED["TARGET_KERNEL_RELEASE"],
             "ndk": str(ndk),
@@ -211,8 +227,10 @@ def main() -> int:
         for name, item in artifacts.items():
             print(f"[BUILT] {name}: ELF64/AArch64 ({item['size']} bytes)")
         print("Report:", report_path)
-        print("Status: " + STATUS)
+        print("Status: " + report["status"])
         print("DO NOT DEPLOY these WIP binaries to Android.")
+        if args.controlled_one_shot:
+            print("One-shot overlay is NOT a safety certification.")
         return 0
     except (OSError, ValueError, RuntimeError, KeyError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
