@@ -876,6 +876,65 @@ diagnostic cannot be run. No root payload, module or global-tracing
 experiments should be performed solely on the strength of these
 results.
 
+## Controlled GZIF one-shot trial preparation — 2026-10-15
+
+**Root was NOT attempted; the following is a source-only, off-device WIP
+engineering step, not a validated flashing/rooting method.**
+
+The generated GZIF candidate BOPE payload already compiled (owner reported
+four ELF64/AArch64 outputs) and its separate Android native smoke passed on
+the physical handset. An isolated tracefs instance experiment failed at
+`mkdir`; the global trace controls were later observed at 0/0.
+The original BOPE tracefs resolver still has destructive global trace
+truncation, unguarded retries and donor-inherited unvalidated timings.
+
+To prepare a *single-attempt source candidate* without modifying either
+`targets/zzi8-WIP` or the owner's generated GZIF WIP tree, a
+strict source overlay and opt-in build flag were added:
+
+- `tools/linux/gzif_controlled_trial_overlay.py` operates only on the
+  disposable staging copy in the existing isolated builder.
+- It requires exact firmware identity as before and inserts an explicit
+  runtime opt-in `GZIF_ONE_SHOT_ACK`; without it the payload
+  **refuses before exploit preparation**.
+- Forces `EXPLOIT_ATTEMPTS` to **one** regardless of environment.
+- Refuses user-supplied cached/forced KASLR values.
+- Removes the resolver's **global trace-file truncation**.
+- Before touching TraceFS, requires both global `tracing_on` and
+  `sched_blocked_reason/enable` to be exactly `0`. Any failure
+  causes an abort.
+- Tries to restore `0/0` and verify the result on normal completion.
+  **This is best effort**, not an atomic tracing transaction:
+  `trace_pipe_raw` can consume existing global ring records;
+  concurrent trace users can interfere; `SIGKILL`, crashes or
+  kernel reboot can prevent restoration. The 0/0 check does **not**
+  prove that no historical trace data exist.
+- Static source-drift and copy-isolation regressions are in
+  `tools/bope/tests/test_gzif_controlled_trial_overlay.py`.
+
+On **Ubuntu WSL2**, build a *host-side only* one-shot variant:
+
+```bash
+cd ~/Root-My-Galaxy-GZIF
+git pull --ff-only origin port/s918n-gzif-android17
+python3 -m unittest tools.bope.tests.test_gzif_controlled_trial_overlay -v
+python3 tools/linux/build-gzif-android-wip.py --controlled-one-shot
+```
+
+A successful run places an overlay report and distinct
+`HOST_BUILD_ONE_SHOT_EXPERIMENTAL_NOT_DEVICE_VALIDATED` build report in
+a new directory under `~/rmg-firmware/gzif-android-builds/`.
+It does not transfer, execute, or install anything on Android. **Do not
+deploy the one-shot candidate just because it compiled**.
+
+**Pending before owner-authorized device exploit trial:** review
+the resulting build and exact runtime environment; evaluate the trace
+record encoding and recoverability if globals cannot be restored;
+confirm no new unresolved boot or kernel-version assumptions; verify
+the prepared Odin/official-firmware recovery path; and separately
+resolve KernelSU module admission policy. Root helper success and
+KernelSU persistent root must not be conflated.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
