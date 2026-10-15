@@ -16,6 +16,44 @@ The standalone boot image was inspected locally, its kernel identity was checked
 embedded BTF was validated with `pahole -F btf -C task_struct`. This does **not**
 establish a working BOPE or KernelSU port.
 
+
+## Verified BTF ABI audit (completed offline)
+
+The user-supplied boot was decompressed to an Android boot-v4 image; its kernel
+release and embedded BTF were verified locally with `pahole`. The recorded
+[ABI report](btf-abi-report.json) contains **74 of 74 resolved BTF values**:
+63 structure-field offsets, 8 structure sizes and 3 enum values. Comparison
+with the upstream ZZI8 donor `target.h` found **0 ABI differences**.
+
+Reproduce this independently with:
+
+```sh
+python3 tools/bope-btf-audit /path/to/vmlinux-GZIF.btf \
+  --donor-header targets/zzi8-WIP/brazilian-open-payload-engine/src/target.h \
+  --output /tmp/gzif-btf-audit.json
+```
+
+This is **not** proof that the static symbol offsets are unchanged. The BOPE
+port still requires a reliable target `kallsyms`, a symbolized `vmlinux.elf`,
+cross-validation of generated `src/target.h` against ELF+BTF, KernelSU module
+ABI verification, BOPE binary builds, and clean-boot physical-device trials.
+**Do not copy ZZI8 symbol addresses into a GZIF executable based on the BTF
+comparison.** Do not enable GZIF in the app target manifest without those gates.
+
+## Remaining validation gates
+
+1. Recover GZIF-specific kernel symbols from the provided boot and generate a
+   symbolized `vmlinux.elf` using the upstream porting pipeline.
+2. Regenerate and verify every BOPE firmware-specific static offset and
+   maintain an explicit list of donor-inherited timing/calibration values.
+3. Rebuild and audit KernelSU Next against GZIF's actual kernel ABI and module
+   versioning, then compile the payload and its helpers with the matching NDK.
+4. Confirm exact runtime identity, safe failure and reproducibility across
+   multiple clean boots on the owner's **SM-S918N** device. Keep SELinux and
+   protected partitions intact.
+5. Only then bundle the resulting verified artifacts into the app and publish
+   a supported target/release.
+
 ## Generate a WIP target from the supplied standalone LZ4
 
 Use the full upstream source checkout and prerequisite tools described in
