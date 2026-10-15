@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from tools.bope.errors import BopeError
-from tools.bope.standalone import inspect_standalone_boot
+from tools.bope.standalone import inspect_standalone_boot, verify_standalone_kernel_identity
 
 
 FINGERPRINT = (
@@ -38,6 +38,28 @@ class StandaloneBootTests(unittest.TestCase):
         self.assertEqual(info.model, "SM-S918N")
         self.assertEqual(info.slug, "s918ngzif")
         self.assertEqual(info.android_version, "17")
+
+    def test_accepts_matching_kernel_release(self):
+        verify_standalone_kernel_identity(
+            self.inspect(),
+            "5.15.197-android13-8-34343818-abS918NKSU8GZIF",
+            expected_release="5.15.197-android13-8-34343818-abS918NKSU8GZIF",
+        )
+
+    def test_rejects_mismatched_kernel_build(self):
+        with self.assertRaises(BopeError):
+            verify_standalone_kernel_identity(
+                self.inspect(),
+                "5.15.197-android13-8-34343818-abS918BXXUAZZI8",
+            )
+
+    def test_rejects_wrong_exact_kernel_release(self):
+        with self.assertRaises(BopeError):
+            verify_standalone_kernel_identity(
+                self.inspect(),
+                "5.15.197-android13-8-34343818-abS918NKSU8GZIF",
+                expected_release="5.15.189-android13-8-33413713-abS918NKSU8GZIF",
+            )
 
     def test_rejects_wrong_device(self):
         with self.assertRaises(BopeError):
