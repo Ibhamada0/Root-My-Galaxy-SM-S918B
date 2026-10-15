@@ -253,6 +253,41 @@ assembled host-only tool has been observed on the owner's WSL
 as of this note. Do not repeat successful device KASLR tests
 to validate a packaging operation.
 
+### Owner-confirmed five-artifact off-device assembly — 2026-10-15
+
+The owner successfully ran
+`python3 tools/linux/assemble-gzif-rootchain-host-only.py`
+following the fast-forward Git pull to `9452402`. Its exact
+reported completion was:
+
+```text
+[ASSEMBLED] 5 Android ARM64 host artifacts: /home/ebrahim/rmg-firmware/gzif-rootchain-host-only/s918n-gzif-bope-ksud-candidate
+Manifest: /home/ebrahim/rmg-firmware/gzif-rootchain-host-only/s918n-gzif-bope-ksud-candidate/rootchain-manifest.json
+Status: HOST_ONLY_NOT_ROOT_READY; no device actions
+```
+
+This assembly reuses all **five previously built ARM64 binaries**,
+validates the original reported SHA-256 and sizes, and places
+copies in a non-executable host-only directory. It does not
+start a root session, trigger BOPE kernel mutation, load the
+unsigned ZZI8-derived KernelSU module, or flash Android.
+
+**Completed work (do not repeat without cause):**
+12/12 host regression suite; on-device guarded two-page KASLR
+quorum with TraceFS restored `0/0`; BOPE four-artifact
+host build; Rust/Cargo `ksud` host build; five-artifact
+hash-verified host-only assembly.
+
+**Actual outstanding root work (not a request for more tests):**
+Samsung GZIF-specific futex/allocator and memory-write
+runtime behavior, temporary root/UMH completion and
+restoration, module admission on the Samsung kernel,
+the KernelSU control handshake, and SELinux enforcing
+recovery. The donor module has a GZIF-matching vermagic
+field only; it is not a source-rebuilt or device-accepted
+kernel module. `full_root_ready=false`; no device
+deployment is approved by successful assembly.
+
 ## Exact-kernel module build gate
 
 A source-only WSL builder was added:
