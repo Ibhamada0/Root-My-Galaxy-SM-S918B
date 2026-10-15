@@ -1447,6 +1447,21 @@ occurred. The device's existing `ksud --version` check returned
 `ksud 3.4.0 (uapi: 4)` with exit 0, but kernel module loading
 and BOPE full-root execution are **not validated**.
 
+### Follow-up: FOPS/futex recovery source gate
+
+The `tools/linux/audit_gzif_kernel_recovery.py` off-device audit
+now identifies four exact unresolved recovery paths in the existing
+BOPE donor: logging-only FOPS recovery, incomplete pipe installation
+after mutation, static UMH path remaining pinned on trigger timeout,
+and success-path SELinux restoration deferred to a separate daemon.
+Expected result: `NO_GO_KERNEL_RECOVERY_UNPROVEN`, exit status 2.
+
+The disposable GZIF root-helper overlay has also gained four
+best-effort enforcing-restoration attempts for early UMH failures
+before the watchdog starts. Neither a source-only audit nor the
+early-userland cleanup proves safe kernel mutation. Two new helper
+tests and three source-audit tests await the owner's WSL run.
+See `ROOT_CHAIN.md` for file-level findings and commands.
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
