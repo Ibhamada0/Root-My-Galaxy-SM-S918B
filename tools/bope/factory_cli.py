@@ -21,6 +21,7 @@ from .common import (
 from .contract import derive_contract, parse_numeric_macros, verify_contract
 from .errors import BopeError
 from .factory import FactoryInfo, extract_factory_boot, inspect_factory
+from .standalone import inspect_standalone_boot, extract_standalone_boot
 from .kernel import default_kallsyms_finder, default_vmlinux_to_elf, prepare_kernel
 from .kernelsu import prepare_kernelsu
 from .target import (
@@ -75,7 +76,7 @@ def _parser() -> argparse.ArgumentParser:
             "the result into the Android app."
         ),
     )
-    parser.add_argument("factory", type=Path, help="Samsung Odin factory ZIP")
+    parser.add_argument("factory", type=Path, help="Samsung Odin factory ZIP or standalone boot.img.lz4")
     parser.add_argument("--fingerprint", required=True, help="exact runtime target fingerprint")
     parser.add_argument("--device", default="dm3q")
     parser.add_argument(
@@ -284,8 +285,10 @@ def generate(args: argparse.Namespace) -> Path:
     donor_build = _string_macro(donor_contract, "TARGET_BUILD")
     donor_fingerprint = _string_macro(donor_contract, "TARGET_FINGERPRINT")
     donor_release = _string_macro(donor_contract, "TARGET_KERNEL_RELEASE")
-    info = inspect_factory(
-        args.factory.expanduser().resolve(),
+    source_path = args.factory.expanduser().resolve()
+    inspector = inspect_standalone_boot if source_path.suffix.lower() == ".lz4" else inspect_factory
+    info = inspector(
+        source_path,
         donor_build=donor_build,
         donor_fingerprint=donor_fingerprint,
         target_fingerprint=args.fingerprint,
@@ -338,13 +341,12 @@ def generate(args: argparse.Namespace) -> Path:
         firmware = staging / "firmware"
         compressed_boot = firmware / f"boot_{info.slug.upper()}.img.lz4"
         boot = firmware / f"boot_{info.slug.upper()}.img"
-        note("streaming boot.img.lz4 from the nested factory AP archive")
-        extract_factory_boot(
-            info,
-            compressed_boot,
-            boot,
-            lz4=args.lz4,
-        )
+        if info.ap_entry == "<standalone-boot-lz4>":
+            note("copying and decoding the supplied standalone boot.img.lz4")
+            extract_standalone_boot(info.path, compressed_boot, boot, lz4=args.lz4)
+        else:
+            note("streaming boot.img.lz4 from the nested factory AP archive")
+            extract_factory_boot(info, compressed_boot, boot, lz4=args.lz4)
         ignore = staging / ".gitignore"
         ignore.write_text(ignore.read_text() + f"firmware/{compressed_boot.name}\n")
         kernel = prepare_kernel(
