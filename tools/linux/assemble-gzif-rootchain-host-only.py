@@ -103,16 +103,32 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bope-report", type=Path, default=DEFAULT_BOPE)
     parser.add_argument("--ksud-report", type=Path, default=DEFAULT_KSUD)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--fused-helper-report", type=Path,
+        help="Optional newly compiled GZIF helper with SELinux fallback fuse",
+    )
+    parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
     staging: Path | None = None
     try:
         bope_path = args.bope_report.expanduser().resolve()
         ksud_path = args.ksud_report.expanduser().resolve()
-        destination = args.output.expanduser().resolve()
+        destination = (
+            args.output.expanduser().resolve()
+            if args.output else
+            DEFAULT_OUTPUT.with_name(
+                DEFAULT_OUTPUT.name + "-selinux-fuse"
+                if args.fused_helper_report else DEFAULT_OUTPUT.name
+            )
+        )
         bope = json_object(bope_path)
         ksud = json_object(ksud_path)
         audit = json_object(AUDIT)
+        fused_report_path = (
+            args.fused_helper_report.expanduser().resolve()
+            if args.fused_helper_report else None
+        )
+        fused = json_object(fused_report_path) if fused_report_path else None
 
         require(
             bope.get("status")
@@ -167,6 +183,32 @@ def main() -> int:
                 source, metadata.get("sha256"), metadata.get("size"),
                 bope_path.parent,
             )
+            if key == "root_helper" and fused is not None:
+                require(
+                    fused.get("status")
+                    == "GZIF_TEMP_ROOT_HELPER_FUSE_HOST_BUILT_NOT_DEVICE_VALIDATED"
+                    and fused.get("firmware") == BUILD
+                    and fused.get("kernel_release") == RELEASE
+                    and fused.get("baseline_bope_report") == str(bope_path)
+                    and fused.get("baseline_helper_sha256") == verified["sha256"]
+                    and fused.get("deployable") is False
+                    and fused.get("root_ready") is False,
+                    "Guarded helper provenance does not match original GZIF BOPE build",
+                )
+                guard = fused.get("guard")
+                require(
+                    isinstance(guard, dict)
+                    and guard.get("mode") == "GZIF_TEMP_ROOT_SELINUX_FUSE_HOST_SOURCE_ONLY"
+                    and guard.get("timeout_seconds") == 180,
+                    "Guarded helper report lacks exact 180-second SELinux fuse",
+                )
+                fused_binary = Path(str(fused.get("binary", ""))).resolve()
+                require(fused_binary.name == name, "Unexpected guarded helper filename")
+                source = fused_binary
+                verified = verify_item(
+                    source, fused.get("sha256"), fused.get("size"),
+                    fused_report_path.parent,
+                )
             originals[name] = (source, verified)
 
         loader = Path(str(ksud.get("loader_path", ""))).resolve()
@@ -218,6 +260,11 @@ def main() -> int:
             "bope_build_report": str(bope_path),
             "ksud_build_report": str(ksud_path),
             "module_audit_report": str(AUDIT),
+            "root_helper_fuse_report": str(fused_report_path) if fused else None,
+            "root_helper_fuse": (
+                "HOST_BUILT_GZIF_180_SECOND_FUSE_BEST_EFFORT_ONLY"
+                if fused else "ORIGINAL_HELPER_WITHOUT_FUSE"
+            ),
             "module_sha256": ksud["module_sha256"],
             "module_provenance": "ZZI8 donor KernelSU Next v3.4.0; GZIF vermagic-only",
             "kernelsu_source_commit": KSU_COMMIT,
