@@ -164,6 +164,42 @@ The module load syscall may be rejected, or a binary mismatch
 may crash the device. This host integration only eliminates the
 missing-ksud-build gap, not the runtime kernel-mutation gap.
 
+### Owner-confirmed completed ksud Android ARM64 host build — 2026-10-15
+
+The owner ran `python3 tools/linux/build-gzif-ksud-loader-wip.py`
+after fixing a loader-builder audit-schema mismatch and installing
+Rust/Cargo. **The actual Cargo cross-build completed successfully**:
+
+```text
+[SOURCE] KernelSU Next v3.4.0 pinned: 1a879d6a866f80b1fa1c1009a2ffa747873cbb5e
+[MODULE] EXACT metadata-only donor candidate staged as embedded android13-5.15_kernelsu.ko
+[BUILD] Actual Android ksud via cargo; no ADB/insmod/flash
+[BUILT] ksud-selected.WIP: ELF64/AArch64 (4246104 bytes)
+Status: HOST BUILT; device module admission NOT validated
+```
+
+The owner's local outputs are:
+
+```text
+~/rmg-firmware/gzif-kernelsu-loader-builds/s918ngzif-ksud-ohhjnre7/ksud-selected.WIP
+~/rmg-firmware/gzif-kernelsu-loader-builds/s918ngzif-ksud-ohhjnre7/build-report.json
+~/rmg-firmware/gzif-kernelsu-loader-builds/s918ngzif-ksud-ohhjnre7/ksud-cargo-build.log
+```
+
+This **closes the missing-userspace-ksud host-build gap**:
+a real ARM64 Android `ksud` with the donor-derived
+`android13-5.15_kernelsu.ko` embedded now exists in the owner's
+WSL. It is still an **unapproved experimental build**; the kernel
+module was **not source-rebuilt for GZIF**, signed, or loaded.
+
+**The remaining chain is NOT validated:** BOPE kernel mutation,
+verified arbitrary kernel R/W, temporary root via UMH, module
+load admission under Samsung security policy, successful KernelSU
+control handshake, SELinux restoration and persistence. No
+device test/flash/load is justified just by the successful Cargo
+build. Do not repeat completed 12/12 host regressions or KASLR
+tests merely to confirm this host-build result.
+
 ## Exact-kernel module build gate
 
 A source-only WSL builder was added:
