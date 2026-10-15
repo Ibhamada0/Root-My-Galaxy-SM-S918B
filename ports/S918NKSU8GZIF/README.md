@@ -183,6 +183,37 @@ T="$HOME/rmg-firmware/gzif-contracts/s918ngzif-WIP"
   --btf "$T/firmware/vmlinux_S918NGZIF.btf"
 ```
 
+## Inherited-values triage — owner-confirmed 2026-10-15
+
+The operator inspected the generated `port-manifest.json` and found 23
+changed values: six firmware identity strings and seventeen symbol-derived
+offsets. The inherited array has **169 `TARGET_*` macros** and is not
+strictly a calibration-only list. Prefix-based counts observed:
+
+| Category | Inherited entries |
+| --- | ---: |
+| Futex / timing | 43 |
+| Memory / reclaim | 28 |
+| Pipe / ConfigFS | 29 |
+| KASLR / mapping | 8 |
+| Fake objects / signal | 28 |
+| Other inherited macros | 33 |
+
+The generated `target.h` was checked for stale donor identity strings.
+There were **no matches inside active macros**; the only match was a stale
+top-of-file prose description mentioning `SM-S918B` and the old ZZI8
+beta-release description. Commit
+`90b0b9befb43411dd9acb077a5152a48494ca782`
+corrected this for **future generated contracts** with
+`normalize_firmware_contract_comment`. The owner's existing local
+generated `target.h` retains its older comment until regeneration or an
+explicit prose-only local edit.
+
+**Gate remains blocked:** inherited runtime tunables and device calibration
+must be reviewed independently. This audit is a classification of
+unverified settings, not authorization to run a privilege-escalation
+payload or proof of platform stability.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
