@@ -53,7 +53,7 @@ class ControlledGzifTrialOverlayTests(unittest.TestCase):
             'if (success && getenv("GZIF_KASLR_ONLY")) {',
             patched,
         )
-        self.assertIn("root not attempted", patched)
+        self.assertIn("stage=gzif-kaslr-resolved root-not-attempted", diag)
 
 
     def test_kaslr_only_reports_diagnostic_not_exploit_success(self):
