@@ -191,6 +191,9 @@ int main(void) {
             folder = Path(workspace)
             (folder / "01_kernel_base_tracefs.c").write_text(patched)
             (folder / "target.h").write_text((DONOR / "target.h").read_text())
+            (folder / "01_kernel_base_tracefs.h").write_text(
+                (DONOR / "01_kernel_base_tracefs.h").read_text()
+            )
             harness = folder / "quorum_test.c"
             harness.write_text(source)
             executable = folder / "quorum_test"
