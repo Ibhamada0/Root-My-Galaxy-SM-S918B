@@ -243,6 +243,37 @@ manifest. Do not commit the owner's kernel binaries or generated exploit
 artifacts. The script never contacts the device and never changes the
 application support manifest.
 
+### Correcting inherited FILE_CACHE_SIZE audit — 2026-10-15
+
+The first owner-run `python3 tools/linux/audit-gzif-inherited.py` reported
+`Offline structural checks: 5/6` with one failure:
+
+```text
+[FAIL] BTF struct file size: expected 264, header 320
+```
+
+**This was a false assumption in the offline auditor, not proof that the
+contract was wrong.** BTF says `sizeof(struct file) = 264` bytes, but
+the inherited `TARGET_FILE_CACHE_SIZE = 320` is passed as a *SLAB
+allocation/cache size* to `slab_cache_guard_begin`, which is not
+required to equal the type size. Moreover, that code path is currently
+`#if 0` disabled in the donor `09_pipe_buffer_rw.c`; do not enable it
+or modify this constant merely to make the test pass.
+
+The auditor was corrected in commit
+`10a9eb3e75910a0d24b171d7083b10ba9e1f51c4`
+to retain an explicit `UNVERIFIED_SLAB_OBJECT_SIZE` observation
+and perform **five**, not six, separate structural checks:
+three `rb_node` field offsets, guard byte count, and path/patch size
+bounds. This deliberately **does not** validate the 320-byte cache
+size. Three regression cases were added for the observation semantics.
+
+The owner should pull the revised script, run
+`python3 -m unittest tools.bope.tests.test_inherited_cache_observation -v`,
+and re-run `python3 tools/linux/audit-gzif-inherited.py`.
+A clean `5/5` only confirms those five structural invariants and does
+not enable device execution or support.
+
 ## Remaining validation gates
 
 1. Recover GZIF-specific kernel symbols from the provided boot and generate a
