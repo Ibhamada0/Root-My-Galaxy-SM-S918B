@@ -253,6 +253,37 @@ assembled host-only tool has been observed on the owner's WSL
 as of this note. Do not repeat successful device KASLR tests
 to validate a packaging operation.
 
+### SELinux restoration sequencing gap — source review
+
+Source-level review after the completed five-file assembly found a
+concrete sequencing hazard in the existing BOPE ↔ KernelSU chain:
+
+1. `10_workqueue_umh_root.c:root_umh_install_fd_tracked()`
+   writes a zero byte to the kernel enforcing-state address to
+   permit the temporary UMH root bootstrap.
+2. The `out:` cleanup block restores the original SELinux byte
+   only under `if (!result && selinux_changed)`.
+   **On a successful temporary-root socket result, it intentionally
+   does not restore enforcing inside this function.**
+3. `helper/su_daemon.c:run_kernelsu_late_load()` launches
+   `ksud late-load`, checks KernelSU control and then calls
+   `restore_selinux_enforcing()` after the child completes.
+4. Therefore a successful temporary root that is **not followed
+   by completion of the separate late-load request** lacks a
+   demonstrated guarantee that SELinux enforcing is restored.
+   The existence of a host-built `ksud-selected.WIP` does not
+   close this lifetime/cleanup gap.
+
+The original donor does contain best-effort failure cleanup,
+but that does **not** prove fail-safe recovery on crash,
+SIGKILL, system restart, rejected module or an absent
+late-load request. This is a specific engineering **NO-GO**
+for calling the full sequence reliable or deploying the
+donor module just because the userspace files are now built.
+A robust solution needs an independently verified bounded
+restoration mechanism and Samsung-compatible module admission,
+rather than another KASLR, build or stability test.
+
 ### Owner-confirmed five-artifact off-device assembly — 2026-10-15
 
 The owner successfully ran
