@@ -1,0 +1,94 @@
+# GZIF BOPE → KernelSU Next root-chain status
+
+**Target:** Samsung Galaxy S23 Ultra SM-S918N, firmware
+`S918NKSU8GZIF`, kernel
+`5.15.197-android13-8-34343818-abS918NKSU8GZIF`.
+
+**Status (2026-10-15): WIP. No kernel exploit, temporary root or KernelSU
+load was performed or observed on the physical SM-S918N.**
+
+## Exact chain in the existing source
+
+1. `stability-launcher` checks runtime resources then starts BOPE with
+   `LD_PRELOAD`. Owner **passed `--check-only`**, not exploit execution.
+2. `00_orchestrator.c` resolves KASLR, grooms a kernel slab target,
+   exercises a futex PI path, and attempts kernel address reads/writes.
+   **All kernel-mutation runtime phases are unvalidated for GZIF.**
+3. `10_workqueue_umh_root.c` writes to kernel addresses including
+   the `CONFIG_STATIC_USERMODEHELPER_PATH` value and the SELinux
+   enforcing state. A successful temporary-root socket
+   `/data/local/tmp/temp_su.sock` is **not** proof of KernelSU.
+   An abrupt kernel crash can interrupt the restoration procedure.
+4. `helper/su_daemon.c` handles a **separate** late-load command,
+   using the executable `/data/local/tmp/ksud-selected`.
+   It invokes the pinned KMI string `android13-5.15`, waits for
+   the KernelSU control driver, validates the `KSU` control API and
+   requests restoration of SELinux Enforcing. None of this has run
+   on GZIF.
+5. Root is not considered **KernelSU-ready** until the module is
+   loaded, the control API handshake succeeds, and SELinux is
+   confirmed Enforcing. `BOOT/FLASH/APK READY` would be a false
+   status at present.
+
+## Concrete GZIF-specific gap
+
+The fork contains a **prebuilt donor** ZZI8 KernelSU Next v3.4.0
+`android13-5.15_kernelsu.ko`, plus a local, **analysis-only**
+GZIF `vermagic` text replacement. Neither is a module built against
+GZIF's exact supported kernel build. The repository does **not**
+include the full KernelSU Next source tree, a reproducible
+GZIF-specific `kernelsu.ko` build or a verified `ksud-selected`
+containing that custom module.
+
+The **upstream v3.4.0 source** exists at:
+https://github.com/KernelSU-Next/KernelSU-Next/tree/v3.4.0
+
+Its LKM build workflow is pinned at:
+https://github.com/KernelSU-Next/KernelSU-Next/blob/v3.4.0/.github/workflows/ddk-lkm.yml
+and uses `CONFIG_KSU=m CC=clang make` against a DDK KMI source
+and build environment. The upstream v3.4.0 userspace `build.sh`
+explicitly requires copying the `android13-5.15_kernelsu.ko`
+asset into the `ksud` embedded assets **before** building
+the loader:
+https://github.com/KernelSU-Next/KernelSU-Next/blob/v3.4.0/build.sh
+
+**A generic android13-5.15 DDK build alone is not an exact Samsung
+GZIF kernel module**. The target GKI build provenance/KMI,
+Samsung module loading and protected-export policy, signing,
+relocations and actual load admission must be validated separately.
+139 matched CRCs and eight BTF checks do not establish admission.
+
+## Implementation order (no repeat of completed smoke tests)
+
+1. Identify the actual target GKI toolchain/build configuration
+   required for a reproducible **source-built** `kernelsu.ko` for
+   SM-S918N/GZIF. Keep the local vermagic-only donor module
+   analysis-only and off-device.
+2. Verify that the exact KernelSU module is suitable for
+   late-load with GZIF's `CONFIG_MODULE_SIG_PROTECT=y` policy.
+   Do not treat `CONFIG_MODULE_SIG_FORCE=n` as automatic
+   module-load approval.
+3. Embed the candidate target module into the **same**
+   KernelSU Next v3.4.0 `ksud` build expected by
+   `helper/su_daemon.c`, with a recorded source SHA, exact
+   target identity and module SHA.
+4. Independently review the KASLR trace ring protocol and the
+   inherited allocator/futex timing before authorizing BOPE
+   kernel mutation. `--check-only` pass does not cover them.
+5. Define unambiguous outcomes: **KASLR found**, **kernel read/write
+   working**, **temporary root helper ready**, **KernelSU admitted**,
+   **KernelSU control verified**, and **SELinux Enforcing restored**.
+   Each is a separate milestone, not a single `PASS`.
+
+## Hard limitations
+
+The GZIF one-shot branch compiles host-side but has not been
+device-validated. KASLR uses **global TraceFS** after isolated
+instances were denied on the physical phone; it can consume
+existing raw trace events. The BOPE root stage **temporarily
+modifies SELinux and kernel static UMH state**. Source overlays
+limit the number of attempts and avoid truncating the global trace,
+but do not make an unsafe kernel pointer or missing cleanup safe.
+
+Do not flash, load `.ko` or run the root exploit based on the
+host-only build report.
