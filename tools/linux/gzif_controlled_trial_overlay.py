@@ -71,10 +71,8 @@ static int gzif_tracefs_reset(const char *tracing_on,
     begin = '  static const char trace[] = TRACEFS_ROOT "/trace";'
     end = "  prime_block_io();"
     if text.count(begin) != 1 or text.count(end) != 2:
-        # prime_block_io is called twice at one call-site; use the call-site
-        # sequence and verify it is within the resolver.
-        if text.count(begin) != 1 or text.count(end) < 1:
-            raise ValueError("Unexpected tracefs resolver layout")
+        # The donor has two consecutive prime_block_io() calls.
+        raise ValueError("Unexpected tracefs resolver layout")
     start = text.index(begin)
     finish = text.index(end, start)
     if finish <= start or finish - start > 2000:
