@@ -312,3 +312,27 @@
 #define TARGET_UMH_COMPLETION_SIZE 32U
 
 #endif
+
+/* port compatibility macro: required by bope-from-factory */
+#define TARGET_KERNEL_VERSION "#1 SMP PREEMPT Mon Sep 28 01:56:16 UTC 2026"
+
+/* port compatibility: string macros required by the BOPE engine */
+#define TARGET_BINFMT_TRIGGER_PATH "/data/local/tmp/.rmg-binfmt"
+#define TARGET_STATIC_UMH_PATH "/data/local/tmp/r"
+
+/* port compatibility: macro set copied from the BOPE engine donor */
+#define TARGET_FUTEX_GATE_TIMEOUT_MS 2000
+#define TARGET_RETRY_GATE_SAMPLE_MSEC 1000
+#define TARGET_RETRY_GATE_STABLE_SAMPLES 2
+#define TARGET_RETRY_GATE_TIMEOUT_SEC 30
+#define TARGET_RETRY_MAX_CPU_PSI 25.0
+#define TARGET_RETRY_MAX_IO_PSI 5.0
+#define TARGET_RETRY_MAX_MEM_PSI 3.0
+#define TARGET_RETRY_MAX_MM_DELTA 64UL
+#define TARGET_RETRY_MAX_RUNNABLE 8
+#define TARGET_STATIC_UMH_GUARD_SIZE 24U
+#define TARGET_STATIC_UMH_PATCH_SIZE 18U
+#define TARGET_STATIC_UMH_PATH_OFF 0x01e14b34ULL
+#define TARGET_UMH_SOCKET_POLL_COUNT 500U
+#define TARGET_UMH_SOCKET_POLL_USEC 10000U
+#define TARGET_UMH_TRIGGER_TIMEOUT_MS 5000U

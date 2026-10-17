@@ -217,3 +217,6 @@
 #define FOPS_SHOW_FDINFO_OFF 0xe0
 
 #endif
+
+/* port compatibility macro: required by bope-from-factory */
+#define TARGET_KERNEL_VERSION "#1 SMP PREEMPT Mon Sep 28 01:56:16 UTC 2026"

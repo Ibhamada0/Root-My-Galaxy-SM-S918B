@@ -1,0 +1,143 @@
+name: Build SM-S918N S918NKSU8GZIF (BOPE port + APK)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag
+        required: false
+        default: v0.6.1-gzif-s918n
+  push:
+    tags: ['v0.6.1-*']
+
+permissions:
+  contents: write
+
+env:
+  BOOT_LZ4_URL: https://github.com/Ibhamada0/Root-My-Galaxy-S918N/releases/download/gzif-input/boot.img.lz4
+  TARGET_FP: samsung/dm3qksx/dm3q:17/CP2A.260605.016/S918NKSU8GZIF:user/release-keys
+  KSU_SRC: ${{ github.workspace }}/ksu-source
+
+jobs:
+  port-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Host tools for the BOPE pipeline
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lz4 kmod dwarves bzip2 unzip zipalign
+          python3 -m pip install --quiet --upgrade pip
+          python3 -m pip install --quiet pyelftools vmlinux-to-elf
+          echo "lz4=$(command -v lz4) modinfo=$(command -v modinfo)"
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK + NDK 28.2.13676358
+        run: |
+          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1 || true
+          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install \
+            "platform-tools" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1" \
+            "platforms;android-37.0" >/dev/null 2>&1 || \
+          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install \
+            "platform-tools" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1" \
+            "platforms;android-37" >/dev/null 2>&1
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/28.2.13676358" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/28.2.13676358" >> $GITHUB_ENV
+          ls ${ANDROID_SDK_ROOT}/platforms
+
+      - name: Rust (ksud userspace) + Android target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-linux-android
+          cargo --version
+
+      - name: KernelSU Next v3.4.0 source
+        run: |
+          git clone --depth 1 --branch v3.4.0 https://github.com/KernelSU-Next/KernelSU-Next.git "$KSU_SRC"
+          test -f "$KSU_SRC/userspace/ksud/Cargo.toml"
+
+      - name: Build the fake Samsung AP factory ZIP from the OTA boot image
+        run: |
+          set -e
+          curl -sSL -o /tmp/boot.img.lz4 "$BOOT_LZ4_URL"
+          ls -l /tmp/boot.img.lz4
+          T="AP_S918NKSU8GZIF_S918NKSU8GZIF_USER_CP2A.260605.016_meta_OS17.tar"
+          mkdir -p /tmp/ap && cp /tmp/boot.img.lz4 /tmp/ap/boot.img.lz4
+          ( cd /tmp/ap && tar -cf "/tmp/$T" boot.img.lz4 )
+          md5sum "/tmp/$T" | cut -d' ' -f1 | tr -d '\n' >> "/tmp/$T"
+          mv "/tmp/$T" "/tmp/$T.md5"
+          ( cd /tmp && zip -q -X /tmp/ap-factory.zip "$T.md5" )
+          ls -l /tmp/ap-factory.zip
+
+      - name: Run the developer's BOPE port pipeline (exact flow)
+        run: |
+          set -e
+          ./tools/bope-from-factory /tmp/ap-factory.zip \
+            --donor targets/zzhl \
+            --engine-donor targets/zzi8-WIP \
+            --ksu-source "$KSU_SRC" \
+            --ndk "$ANDROID_NDK_HOME" \
+            --fingerprint "$TARGET_FP" \
+            --integrate-app \
+            --keep-failed
+          echo "---- generated target ----"
+          ls -d targets/gzif-WIP
+          find targets/gzif-WIP -maxdepth 3 -name '*.json' -o -maxdepth 3 -name '*.so' | head -20
+
+      - name: Show the app profile that was integrated
+        run: |
+          python3 - <<'PY'
+          import json
+          d = json.load(open('app/src/main/assets/targets-v3.json'))
+          for p in d.get('payloads', []):
+              if 'GZIF' in json.dumps(p) or 'S918N' in json.dumps(p):
+                  print(json.dumps(p, indent=2)[:900])
+          PY
+          ls -la app/src/main/assets | grep -iE 'gzif|s918n'
+
+      - name: Build the app
+        working-directory: app
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug assembleRelease
+
+      - name: Collect APKs
+        run: |
+          mkdir -p /tmp/apks
+          find app -name '*.apk' -exec cp {} /tmp/apks/ \;
+          ls -l /tmp/apks
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rmg-s918n-gzif-apks
+          path: /tmp/apks/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gzif-bope-target
+          path: |
+            targets/gzif-WIP/port-manifest.json
+            targets/gzif-WIP/brazilian-open-payload-engine/src/target.h
+            targets/gzif-WIP/brazilian-open-payload-engine/build/payload.so
+            targets/gzif-WIP/brazilian-open-payload-engine/build/stability-launcher-gzif
+            targets/gzif-WIP/helper/build/cve-2026-43499-root
+            targets/gzif-WIP/port-logs/*.log
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          [ -z "$TAG" ] && TAG="v0.6.1-gzif-s918n"
+          gh release create "$TAG" /tmp/apks/*.apk \
+            --title "SM-S918N S918NKSU8GZIF · BOPE port + APK" \
+            --notes "BOPE port for SM-S918N / S918NKSU8GZIF built by ./tools/bope-from-factory --integrate-app." \
+            --latest || \
+          gh release upload "$TAG" /tmp/apks/*.apk --clobber
