@@ -40,20 +40,18 @@ jobs:
 
       - name: Android SDK + NDK 28.2.13676358
         run: |
-          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1 || true
-          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install \
-            "platform-tools" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1" \
-            "platforms;android-37.0" >/dev/null 2>&1 || \
-          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install \
-            "platform-tools" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1" \
-            "platforms;android-37" >/dev/null 2>&1
-          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/28.2.13676358" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/28.2.13676358" >> $GITHUB_ENV
-          ls ${ANDROID_SDK_ROOT}/platforms
-          BIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          SDK="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDK" --licenses >/dev/null 2>&1 || true
+          yes | "$SDK" --install "platform-tools" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1" "platforms;android-37.0" >/dev/null 2>&1 || \
+          yes | "$SDK" --install "platform-tools" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1" "platforms;android-37" >/dev/null 2>&1
+          NDK="${ANDROID_SDK_ROOT}/ndk/28.2.13676358"
+          echo "ANDROID_NDK_HOME=$NDK" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$NDK" >> $GITHUB_ENV
+          BIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
           ln -sf "$BIN/aarch64-linux-android26-clang"   "$BIN/aarch64-linux-android-clang"
           ln -sf "$BIN/aarch64-linux-android26-clang++" "$BIN/aarch64-linux-android-clang++"
           ls -l "$BIN/aarch64-linux-android-clang"
+          ls "${ANDROID_SDK_ROOT}/platforms"
 
       - name: Rust (ksud userspace) + Android target
         run: |
@@ -67,7 +65,7 @@ jobs:
           git clone --depth 1 --branch v3.4.0 https://github.com/KernelSU-Next/KernelSU-Next.git "$KSU_SRC"
           test -f "$KSU_SRC/userspace/ksud/Cargo.toml"
 
-      - name: Build the fake Samsung AP factory ZIP from the OTA boot image
+      - name: Build the Samsung AP factory ZIP from the OTA boot image
         run: |
           set -e
           curl -sSL -o /tmp/boot.img.lz4 "$BOOT_LZ4_URL"
@@ -82,22 +80,20 @@ jobs:
 
       - name: Run the developer's BOPE port pipeline (exact flow)
         run: |
-        env:
-          CC_aarch64_linux_android: ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
-          CXX_aarch64_linux_android: ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++
-          AR_aarch64_linux_android: ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-          RANLIB_aarch64_linux_android: ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib
-          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
-          PATH: ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin:${{ env.PATH }}
           set -e
-          NM="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
-          test -x "$NM" || { echo "llvm-nm missing"; exit 1; }
+          NDKBIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export PATH="$NDKBIN:$PATH"
+          export CC_aarch64_linux_android="$NDKBIN/aarch64-linux-android26-clang"
+          export CXX_aarch64_linux_android="$NDKBIN/aarch64-linux-android26-clang++"
+          export AR_aarch64_linux_android="$NDKBIN/llvm-ar"
+          export RANLIB_aarch64_linux_android="$NDKBIN/llvm-ranlib"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
           ./tools/bope-from-factory /tmp/ap-factory.zip \
             --donor targets/zzhl \
             --engine-donor targets/zzi8-WIP \
             --ksu-source "$KSU_SRC" \
             --ndk "$ANDROID_NDK_HOME" \
-            --llvm-nm "$NM" \
+            --llvm-nm "$NDKBIN/llvm-nm" \
             --pahole "$(command -v pahole)" \
             --kallsyms-finder "$(command -v kallsyms-finder)" \
             --vmlinux-to-elf "$(command -v vmlinux-to-elf)" \
@@ -106,7 +102,6 @@ jobs:
             --keep-failed
           echo "---- generated target ----"
           ls -d targets/gzif-WIP
-          find targets/gzif-WIP -maxdepth 3 -name '*.json' -o -maxdepth 3 -name '*.so' | head -20
 
       - name: Show the app profile that was integrated
         run: |
@@ -114,10 +109,10 @@ jobs:
           import json
           d = json.load(open('app/src/main/assets/targets-v3.json'))
           for p in d.get('payloads', []):
-              if 'GZIF' in json.dumps(p) or 'S918N' in json.dumps(p):
+              if 'GZIF' in json.dumps(p):
                   print(json.dumps(p, indent=2)[:900])
           PY
-          ls -la app/src/main/assets | grep -iE 'gzif|s918n'
+          ls -la app/src/main/assets | grep -iE 'gzif|s918n' || true
 
       - name: Build the app
         working-directory: app
@@ -165,6 +160,6 @@ jobs:
           [ -z "$TAG" ] && TAG="v0.6.1-gzif-s918n"
           gh release create "$TAG" /tmp/apks/*.apk \
             --title "SM-S918N S918NKSU8GZIF · BOPE port + APK" \
-            --notes "BOPE port for SM-S918N / S918NKSU8GZIF built by ./tools/bope-from-factory --integrate-app." \
+            --notes "BOPE port for SM-S918N / S918NKSU8GZIF built with ./tools/bope-from-factory --integrate-app." \
             --latest || \
           gh release upload "$TAG" /tmp/apks/*.apk --clobber
