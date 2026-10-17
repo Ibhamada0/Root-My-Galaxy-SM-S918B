@@ -79,11 +79,17 @@ jobs:
       - name: Run the developer's BOPE port pipeline (exact flow)
         run: |
           set -e
+          NM="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
+          test -x "$NM" || { echo "llvm-nm missing"; exit 1; }
           ./tools/bope-from-factory /tmp/ap-factory.zip \
             --donor targets/zzhl \
             --engine-donor targets/zzi8-WIP \
             --ksu-source "$KSU_SRC" \
             --ndk "$ANDROID_NDK_HOME" \
+            --llvm-nm "$NM" \
+            --pahole "$(command -v pahole)" \
+            --kallsyms-finder "$(command -v kallsyms-finder)" \
+            --vmlinux-to-elf "$(command -v vmlinux-to-elf)" \
             --fingerprint "$TARGET_FP" \
             --integrate-app \
             --keep-failed
@@ -106,7 +112,17 @@ jobs:
         working-directory: app
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug assembleRelease
+          if [ -f signing/release.jks ]; then
+            echo "signing release APK with app/signing/release.jks"
+            ./gradlew --no-daemon assembleDebug assembleRelease \
+              -Pandroid.injected.signing.store.file="$PWD/signing/release.jks" \
+              -Pandroid.injected.signing.store.password=rootmygalaxy \
+              -Pandroid.injected.signing.key.alias=s918nrelease \
+              -Pandroid.injected.signing.key.password=rootmygalaxy
+          else
+            echo "no keystore -> debug APK only"
+            ./gradlew --no-daemon assembleDebug
+          fi
 
       - name: Collect APKs
         run: |
