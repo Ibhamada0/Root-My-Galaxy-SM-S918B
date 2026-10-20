@@ -1,0 +1,59 @@
+name: Build DFRoot with Manager Button
+
+on:
+  push:
+    branches:
+      - dfroot-manager-build
+    paths:
+      - "dfroot-manager-kit/**"
+      - ".github/workflows/build-dfroot-manager.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout this integration branch
+        uses: actions/checkout@v4
+
+      - name: Checkout original DFRoot source
+        uses: actions/checkout@v4
+        with:
+          repository: soumarcelino/DFRoot
+          ref: master
+          path: source
+          persist-credentials: false
+
+      - name: Apply manager-button patch (no changes to exploit)
+        run: python3 dfroot-manager-kit/add_manager_button.py source
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK tools
+        run: |
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+
+      - name: Build modified DFRoot APK
+        working-directory: source
+        run: |
+          chmod +x gradlew build.sh
+          ./build.sh
+
+      - name: Upload DFRoot Manager APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DFRoot-Manager-APK
+          path: source/dirtyfrag.apk
+          if-no-files-found: error
+          retention-days: 7
