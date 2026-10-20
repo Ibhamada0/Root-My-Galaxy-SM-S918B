@@ -90,7 +90,7 @@ jobs:
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
           rm -rf "targets/gzif-WIP"
           rm -rf targets/.gzif-WIP.* 2>/dev/null || true
-./tools/bope-from-factory /tmp/ap-factory.zip \
+          ./tools/bope-from-factory /tmp/ap-factory.zip \
             --donor targets/zzhl \
             --engine-donor targets/zzi8-WIP \
             --ksu-source "$KSU_SRC" \
