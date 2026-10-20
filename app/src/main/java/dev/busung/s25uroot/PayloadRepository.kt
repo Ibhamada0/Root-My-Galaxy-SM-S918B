@@ -44,7 +44,8 @@ class PayloadRepository(private val context: Context) {
         ?: error(context.getString(R.string.repo_profile_missing, profileId))
 
     fun download(profile: TargetProfile, onProgress: (String) -> Unit): VerifiedPayloads {
-        val directory = File(context.filesDir, "payloads/${profile.profileId}").apply { mkdirs() }
+        /* v0.6.2: cache-bust — new extraction dir per app version, never reuse a stale exploit */
+        val directory = File(context.filesDir, "payloads/${profile.profileId}/${BuildConfig.VERSION_NAME}").apply { mkdirs() }
         /* v0.2.28+: 强制使用内嵌 assets，绝不网络下载（杜绝版本漂移）。*/
         val exploit = bundledAssetFor(profile.exploit, directory, onProgress,
             context.getString(R.string.artifact_exploit_bundled))
@@ -74,12 +75,29 @@ class PayloadRepository(private val context: Context) {
                 context.getString(R.string.artifact_mm_factory_bundled),
             ) ?: error("bundled mm factory missing: ${artifact.url}")
         }
+        onProgress("[app] payload-file=${exploit.absolutePath} size=${exploit.length()} " +
+            "md5=${payloadMd5(exploit)} asset=${profile.exploit.url}")
         Os.chmod(exploit.absolutePath, 0b100100100)
         Os.chmod(kernelSu.absolutePath, 0b100100100)
         Os.chmod(helper.absolutePath, 0b111101101)
         Os.chmod(launcher.absolutePath, 0b111101101)
         mmFactory?.let { Os.chmod(it.absolutePath, 0b111101101) }
         return VerifiedPayloads(profile, exploit, kernelSu, helper, launcher, mmFactory)
+    }
+
+    private fun payloadMd5(file: File): String = try {
+        val digest = java.security.MessageDigest.getInstance("MD5")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    } catch (e: Throwable) {
+        "unavailable"
     }
 
     private fun bundledAssetFor(

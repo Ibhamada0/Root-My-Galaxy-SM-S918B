@@ -436,6 +436,9 @@ int oss_verify_kernel_access_ex(int fd, uint64_t ashmem_misc_fops_addr,
   uint64_t expect = page_base | TARGET_PRIMARY_FOPS_LIVE_OFF;
   uint64_t got = UINT64_MAX;
   if (!oss_kernel_read(fd, ashmem_misc_fops_addr, &got, sizeof(got))) {
+    fprintf(stderr,
+            "[aqrwdiag] readback READ FAILED addr=%016llx (AAR path dead)\n",
+            (unsigned long long)ashmem_misc_fops_addr);
     return 0;
   }
 
