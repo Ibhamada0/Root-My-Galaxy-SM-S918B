@@ -45,3 +45,7 @@ exploit.log
 .venv/
 __pycache__/
 *.pyc
+
+# generated BOPE target staging dirs must never be committed (bope-from-factory refuses to overwrite)
+targets/gzif-WIP/
+targets/.gzif-WIP.*/

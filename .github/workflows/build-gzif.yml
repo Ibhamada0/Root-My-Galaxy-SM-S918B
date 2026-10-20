@@ -88,7 +88,9 @@ jobs:
           export AR_aarch64_linux_android="$NDKBIN/llvm-ar"
           export RANLIB_aarch64_linux_android="$NDKBIN/llvm-ranlib"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
-          ./tools/bope-from-factory /tmp/ap-factory.zip \
+          rm -rf "targets/gzif-WIP"
+rm -rf targets/.gzif-WIP.* 2>/dev/null || true
+./tools/bope-from-factory /tmp/ap-factory.zip \
             --donor targets/zzhl \
             --engine-donor targets/zzi8-WIP \
             --ksu-source "$KSU_SRC" \
